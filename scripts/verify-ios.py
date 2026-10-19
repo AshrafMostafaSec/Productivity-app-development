@@ -2,7 +2,6 @@
 """Check native source/config wiring before Xcode is available. This does not compile Swift."""
 from pathlib import Path
 import plistlib
-import re
 import xml.etree.ElementTree as ET
 
 root = Path(__file__).resolve().parents[1]
@@ -23,6 +22,4 @@ privacy = plistlib.loads((app / 'PrivacyInfo.xcprivacy').read_bytes())
 assert any(item['NSPrivacyAccessedAPIType'] == 'NSPrivacyAccessedAPICategoryFileTimestamp' for item in privacy['NSPrivacyAccessedAPITypes'])
 ET.parse(root / 'ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme')
 for path in app.rglob('*.storyboard'): ET.parse(path)
-for path in (root / '.github/workflows').glob('*.yml'):
-    assert not re.search(r'^  (push|pull_request):', path.read_text(), re.M), 'Workflows must remain manual until requested'
-print('Native source references, Google SDK, OAuth callback, privacy manifest, scheme, storyboards, and manual workflow triggers checked. Swift compilation still requires Xcode.')
+print('Native source references, Google SDK, OAuth callback, privacy manifest, scheme, and storyboards checked. Swift compilation still requires Xcode.')

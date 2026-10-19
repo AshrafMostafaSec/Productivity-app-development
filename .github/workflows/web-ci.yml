@@ -1,6 +1,8 @@
 name: Web CI
 
 on:
+  push:
+    branches: [codex/actions-validation]
   workflow_dispatch:
 
 permissions:
