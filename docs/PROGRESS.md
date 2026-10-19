@@ -19,4 +19,10 @@ Confirm the final bundle identifier, provide Google iOS OAuth client configurati
 
 ## Validation record
 
-The current execution results are recorded in the pull request and GitHub Actions. Web build success alone does not certify native device behavior. Google login, cloud backup, signed installation, native notifications, and Screen Time remain unverified until their milestones are implemented.
+- Original and standalone TypeScript checks and production Vite builds passed locally.
+- Capacitor iOS generation and sync passed. Workflow YAML, iOS plist files, and asset catalog JSON validated.
+- The local staged Git tree matched the uploaded GitHub tree exactly.
+- The first Web CI and iOS runs were prevented from starting by a GitHub account-level restriction, before any workflow step ran. No remote compilation or IPA artifact was produced. Resolve the restriction shown in Actions, then rerun the jobs.
+- [Web run](https://github.com/AshrafMostafaSec/Productivity-app-development/actions/runs/39183593498) and [iOS run](https://github.com/AshrafMostafaSec/Productivity-app-development/actions/runs/39183593542).
+
+Web build success alone does not certify native device behavior. Google login, cloud backup, signed installation, native notifications, and Screen Time remain unverified until their milestones are implemented.
