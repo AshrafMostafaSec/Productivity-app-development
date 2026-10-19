@@ -15,8 +15,9 @@ async function completed(controller: AppController) {
 }
 it('backs up after the debounce and does not upload unchanged state again', async () => {
   const c = await scheduled();
-  await vi.advanceTimersByTimeAsync(14999); expect(c.drive.uploads).toBe(0);
-  await vi.advanceTimersByTimeAsync(1); expect(c.controller.getSnapshot().cloud.stage).toBe('uploading');
+  const list = vi.spyOn(c.drive, 'list');
+  await vi.advanceTimersByTimeAsync(14999); expect(list).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1); expect(list).toHaveBeenCalledTimes(1);
   await completed(c.controller); expect(c.drive.uploads).toBe(1);
   await vi.advanceTimersByTimeAsync(120000); expect(c.drive.uploads).toBe(1);
 });
