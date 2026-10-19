@@ -4,6 +4,7 @@ import type { ShieldApp } from '../../types';
 import { useStore } from '../../state/store';
 import { prayerLockReason } from '../../state/reducer';
 import { REWARDS } from '../../state/rewards';
+import { assignmentPending } from '../../state/selectors';
 import useNow from '../../lib/useNow';
 import { currentPrayer, daysUntil, dueLabel, timeLabel } from '../../lib/time';
 import Screen, { CircleAction } from '../../ui/Screen';
@@ -31,7 +32,7 @@ export default function FocusScreen() {
   const now = useNow(15_000);
   const { section, direction, setSection } = useSection<Section>(SECTIONS);
   const [addingAssignment, setAddingAssignment] = useState(false);
-  const urgent = state.assignments.some((a) => a.steps.some((s) => !s.done) && daysUntil(a.dueDate, now) <= 1);
+  const urgent = state.assignments.some((a) => assignmentPending(a) && daysUntil(a.dueDate, now) <= 1);
 
   return (
     <Screen
@@ -71,7 +72,7 @@ function UniPanel({ onStudy, onAdd }: { onStudy: () => void; onAdd: () => void }
   const now = useNow(60_000);
   const [openId, setOpenId] = useState<string | null>(null);
   const sorted = [...state.assignments].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-  const isDone = (a: (typeof sorted)[number]) => a.steps.length > 0 && a.steps.every((s) => s.done);
+  const isDone = (a: (typeof sorted)[number]) => !assignmentPending(a);
   const week = sorted.filter((a) => !isDone(a) && daysUntil(a.dueDate, now) <= 7);
   const later = sorted.filter((a) => !isDone(a) && daysUntil(a.dueDate, now) > 7);
   const done = sorted.filter(isDone);

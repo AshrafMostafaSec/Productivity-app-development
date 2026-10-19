@@ -4,7 +4,7 @@ Reviewed on 2026-10-19 from `Productivity app development.zip` and the initially
 
 ## Implementation update — 0.2.0
 
-The new implementation resolves the original storage/backup findings with a Zod-validated vault, atomic iOS/IndexedDB persistence, account-scoped queues and rollback, native Google SDK/Drive code, recovery confirmation, portable backups, and native reminders. Fonts are bundled; sample assignment and medication-specific defaults were removed. Both workflows now require manual dispatch. See `PROGRESS.md` and the implementation PR for validation and native-device limits.
+The new implementation resolves the original storage/backup findings with a Zod-validated vault, atomic iOS/IndexedDB persistence, account-scoped queues and rollback, native Google SDK/Drive code, recovery confirmation, portable backups, and native reminders. Fonts are bundled; sample assignment and medication-specific defaults were removed. Actions and gated beta releases are now authorized; see `RELEASE.md`. See `PROGRESS.md` and the implementation PR for validation and native-device limits.
 
 The table below records findings from the original supplied prototype, not a claim that its old storage implementation is still active.
 
@@ -44,7 +44,7 @@ Data flows from screens through `dispatch`, then the reducer, then the persisten
 
 The source remains a React app. Figma runtime configuration is removed from Vite and the HTML shell now declares its own language, title, viewport safe-area support, and robots metadata. Capacitor provides an iOS host without rewriting the product UI. CI checks the web build and separately compiles an unsigned device app on macOS.
 
-The later implementation adds storage migration, Google integration source, and recovery controls. Native compilation and signed-device behavior still need separate verification; web tests cannot certify them.
+The later implementation adds storage migration, Google integration source, and recovery controls. Xcode compilation has passed on GitHub Actions. Signed-device behavior still needs separate verification; web tests cannot certify it.
 
 ## Platform references
 

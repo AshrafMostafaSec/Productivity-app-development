@@ -6,6 +6,14 @@ const now = new Date(2026, 9, 19, 10).getTime();
 const initial = (): StoreState => ({ ...createInitialState(new Date(now)), toast: null });
 const dispatch = (state: StoreState, action: Action, at = now) => reducer(state, { ...action, meta: { now: at, id: crypto.randomUUID() } });
 describe('domain invariants', () => {
+  it('ignores premature and duplicate completion when the next timer auto-starts', () => {
+    let state = initial(); state.pomodoroSettings.autoStart = true;
+    state = dispatch(state, { type: 'pomo/start', minutes: 2 });
+    expect(dispatch(state, { type: 'pomo/complete' }, now + 1000)).toBe(state);
+    state = dispatch(state, { type: 'pomo/complete' }, now + 120000);
+    expect(state.studyLog).toHaveLength(1); expect(state.pomodoro.phase).toBe('short');
+    expect(dispatch(state, { type: 'pomo/complete' }, now + 120000)).toBe(state);
+  });
   it('does not farm prayer rewards by toggling a prayer', () => {
     let state = initial(); state = dispatch(state, { type: 'prayer/log', id: 'fajr', status: 'on_time' }); const balance = state.balance;
     state = dispatch(state, { type: 'prayer/log', id: 'fajr', status: 'none' }); state = dispatch(state, { type: 'prayer/log', id: 'fajr', status: 'on_time' }); expect(state.balance).toBe(balance);

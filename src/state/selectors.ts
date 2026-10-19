@@ -1,4 +1,4 @@
-import type { AdhkarSessionId, AppState, DayRecord, Impulse } from '../types';
+import type { AdhkarSessionId, AppState, Assignment, DayRecord, Impulse } from '../types';
 import { collectionFor } from '../data/adhkar';
 import { PRAYER_ORDER, dayKeyOf, daysUntil } from '../lib/time';
 
@@ -15,8 +15,12 @@ export function money(state: AppState, amount: number): string {
   return `${sign}${state.budget.currency}${Math.abs(amount).toFixed(Math.abs(amount) % 1 === 0 ? 0 : 2)}`;
 }
 
+export function assignmentPending(assignment: Assignment): boolean {
+  return assignment.steps.length === 0 || assignment.steps.some(step => !step.done);
+}
+
 export function dueSoon(state: AppState, now: Date) {
-  return state.assignments.filter((a) => a.steps.some((s) => !s.done) && daysUntil(a.dueDate, now) <= 2);
+  return state.assignments.filter((a) => assignmentPending(a) && daysUntil(a.dueDate, now) <= 2);
 }
 
 export function adhkarProgress(state: AppState, session: AdhkarSessionId) {

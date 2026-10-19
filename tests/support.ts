@@ -37,9 +37,9 @@ export class FakeDrive implements Drive {
   }
   async remove(_subject: string, id: string) { this.files = this.files.filter(f => f.id !== id); this.data.delete(id); }
 }
-export async function setup(backend = new MemoryBackend(), auth = new FakeAuth(), drive = new FakeDrive()) {
+export async function setup(backend = new MemoryBackend(), auth = new FakeAuth(), drive = new FakeDrive(), autoSchedule = false) {
   const repository = new Repository(backend);
-  const controller = new AppController(repository, auth, drive, false);
+  const controller = new AppController(repository, auth, drive, autoSchedule);
   await controller.initialize();
   return { backend, auth, drive, repository, controller };
 }

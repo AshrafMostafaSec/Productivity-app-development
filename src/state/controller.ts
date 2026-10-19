@@ -132,7 +132,7 @@ export class AppController {
     if (action.type === 'toast/show' || action.type === 'toast/dismiss') return;
     void this.persist().then(() => this.schedule()).catch(() => {});
   };
-  retrySave = async () => { await this.persist(); this.schedule(); };
+  retrySave = async () => { await this.persist(); this.syncMeta(); this.schedule(); };
   retryLoad = async () => { this.initialized = undefined; await this.initialize(); };
   private async attachAccount(account: Account) {
     if (!this.vault) return;

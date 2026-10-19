@@ -3,6 +3,16 @@ import { setup, connectAndAdopt, MemoryBackend, FakeAuth, FakeDrive, accountB } 
 import { parseVault } from '../src/storage/schema';
 
 describe('backup and restore orchestration', () => {
+  it('refreshes backup status after retrying a failed local cloud acknowledgment', async () => {
+    const c = await setup(); await connectAndAdopt(c);
+    c.drive.beforeDownload = async () => { c.drive.beforeDownload = undefined; c.backend.fail = true; };
+    await c.controller.backupNow();
+    expect(c.controller.getSnapshot().storageError).toMatch(/not saved/);
+    c.backend.fail = false; await c.controller.retrySave(); await c.controller.backupNow();
+    expect(c.controller.getSnapshot().cloud.dirty).toBe(false);
+    expect(c.controller.getSnapshot().cloud.lastBackupAt).toBeTypeOf('number');
+    expect(c.drive.uploads).toBe(1);
+  });
   it('keeps fresh install uploads gated until the person chooses data', async () => {
     const c = await setup(); await c.controller.connect(); await c.controller.backupNow();
     expect(c.controller.getSnapshot().cloud.stage).toBe('choice'); expect(c.drive.uploads).toBe(0);

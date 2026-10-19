@@ -24,6 +24,16 @@ describe('validated state and migration', () => {
   });
 });
 describe('transactional repository', () => {
+  it('preserves an empty device file as damaged data instead of creating seeds', async () => {
+    const backend = new MemoryBackend(); backend.value = '';
+    await expect(new Repository(backend).load()).rejects.toThrow(/JSON/);
+    expect(backend.value).toBe(''); expect(backend.broken).toBe('');
+  });
+  it('preserves an empty legacy save instead of replacing it', async () => {
+    const backend = new MemoryBackend(); const repository = new Repository(backend, () => '');
+    await expect(repository.load()).rejects.toThrow(/JSON/);
+    expect(backend.value).toBeNull(); expect(await repository.original()).toBe('');
+  });
   it('migrates legacy data without deleting the original', async () => {
     const old = JSON.stringify({ ...createInitialState(), balance: 99 });
     const backend = new MemoryBackend(); const repository = new Repository(backend, () => old);

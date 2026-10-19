@@ -1,4 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
+const browserErrors = new WeakMap<Page, string[]>();
+test.beforeEach(({ page }) => {
+  const errors: string[] = []; browserErrors.set(page, errors);
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+});
+test.afterEach(({ page }) => { expect(browserErrors.get(page)).toEqual([]); });
 async function openApp(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Skip', exact: true }).click();
@@ -51,4 +58,67 @@ test('nested settings close one sheet at a time and all tabs open', async ({ pag
     await page.getByRole('button', { name: tab, exact: true }).click();
     await expect(page.getByRole('main')).toBeVisible();
   }
+});
+
+test('parks a thought offline, converts it to a routine, and persists it', async ({ page, context }) => {
+  await openApp(page); await page.getByRole('tab', { name: /^Inbox/ }).click();
+  await context.setOffline(true);
+  await page.getByRole('textbox', { name: 'New thought' }).fill('Prepare my network lab');
+  await page.getByRole('button', { name: 'Park it', exact: true }).click();
+  await expect(page.getByText('Prepare my network lab', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /^Make task after / }).click();
+  await expect(page.getByText('Mind clear', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Routine', exact: true }).click();
+  await expect(page.getByRole('checkbox', { name: 'Complete Prepare my network lab', exact: true })).toHaveCount(1);
+  await expect(page.getByRole('checkbox', { name: 'Complete Prepare my network lab', exact: true })).toBeVisible();
+  await context.setOffline(false); await page.reload();
+  await page.getByRole('tab', { name: 'Routine', exact: true }).click();
+  await expect(page.getByRole('checkbox', { name: 'Complete Prepare my network lab', exact: true })).toHaveCount(1);
+  await expect(page.getByRole('checkbox', { name: 'Complete Prepare my network lab', exact: true })).toBeVisible();
+});
+
+test('adds and deletes a real expense across reloads', async ({ page }) => {
+  await openApp(page); await page.getByRole('button', { name: 'Wallet', exact: true }).click();
+  await page.getByLabel('Log expense', { exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Log Expense', exact: true });
+  await sheet.getByLabel('Amount', { exact: true }).fill('25.50');
+  await sheet.getByPlaceholder('What was it?').fill('Campus lunch');
+  await sheet.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(sheet).toHaveCount(0); await expect(page.getByText('Campus lunch', { exact: true })).toBeVisible();
+  await page.reload(); await page.getByRole('button', { name: 'Wallet', exact: true }).click();
+  await expect(page.getByText('Campus lunch', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Delete Campus lunch', exact: true }).click();
+  await expect(page.getByText('Campus lunch', { exact: true })).toHaveCount(0);
+});
+
+test('keeps a deadline without steps pending and completes its added step', async ({ page }) => {
+  await openApp(page); await page.getByRole('button', { name: 'Focus', exact: true }).click();
+  await page.getByRole('tab', { name: 'Uni', exact: true }).click();
+  await page.getByRole('button', { name: 'Add deadline', exact: true }).first().click();
+  const sheet = page.getByRole('dialog', { name: 'New Deadline', exact: true });
+  await sheet.getByLabel('Course', { exact: true }).fill('Networks');
+  await sheet.getByLabel('Title', { exact: true }).fill('VLAN lab');
+  await sheet.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(sheet).toHaveCount(0);
+  await page.getByText('Networks · VLAN lab', { exact: true }).click();
+  const detail = page.getByRole('dialog', { name: 'Networks', exact: true });
+  await detail.getByLabel('New step', { exact: true }).fill('Submit the topology');
+  await detail.getByRole('button', { name: 'Add', exact: true }).click();
+  await detail.getByRole('checkbox', { name: 'Submit the topology', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByText('All steps done', { exact: true })).toBeVisible();
+  await page.reload(); await page.getByRole('button', { name: 'Focus', exact: true }).click();
+  await page.getByRole('tab', { name: 'Uni', exact: true }).click();
+  await expect(page.getByText('All steps done', { exact: true })).toBeVisible();
+});
+
+test('preserves a paused focus timer through a reload', async ({ page }) => {
+  await openApp(page); await page.getByRole('button', { name: 'Focus', exact: true }).click();
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect(page.getByText('Paused', { exact: true })).toBeVisible();
+  await page.reload(); await page.getByRole('button', { name: 'Focus', exact: true }).click();
+  await expect(page.getByText('Paused', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Stop and save', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Stop and save', exact: true })).toBeDisabled();
 });

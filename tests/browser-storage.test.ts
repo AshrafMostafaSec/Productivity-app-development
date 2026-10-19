@@ -2,6 +2,11 @@ import { it, expect } from 'vitest';
 import { BrowserBackend } from '../src/storage/backend';
 import { Repository } from '../src/storage/repository';
 import { parseVault } from '../src/storage/schema';
+it('never replaces an empty original recovery file with a later save', async () => {
+  const backend = new BrowserBackend();
+  await backend.preserveOriginal(''); await backend.preserveOriginal('later data');
+  expect(await backend.original()).toBe('');
+});
 it('commits state and metadata in IndexedDB and reloads through a new repository instance', async () => {
   const backend = new BrowserBackend(); const repository = new Repository(backend); const vault = await repository.load();
   vault.datasets.guest.state.balance = 84; vault.datasets.guest.revision = 3; vault.datasets.guest.dirty = true;

@@ -33,7 +33,7 @@ export class BrowserBackend implements Backend {
   async read() { return ((await this.connect()).get('vault', 'current')) as Promise<string | null>; }
   async previous() { return ((await this.connect()).get('vault', 'previous')) as Promise<string | null>; }
   async original() { return ((await this.connect()).get('vault', 'original')) as Promise<string | null>; }
-  async preserveOriginal(value: string) { const db = await this.connect(); const tx = db.transaction('vault', 'readwrite'); if (!(await tx.store.get('original'))) await tx.store.put(value, 'original'); await tx.done; }
+  async preserveOriginal(value: string) { const db = await this.connect(); const tx = db.transaction('vault', 'readwrite'); if ((await tx.store.get('original')) == null) await tx.store.put(value, 'original'); await tx.done; }
   async write(value: string) {
     if (new TextEncoder().encode(value).byteLength > MAX_BYTES) throw new Error('Device storage limit reached. Export your data before continuing.');
     const db = await this.connect();

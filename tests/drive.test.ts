@@ -7,6 +7,20 @@ import { createInitialState } from '../src/state/initialState';
 describe('Google Drive HTTP boundary', () => {
   const file = { id: 'file-1', name: 'backup.json', createdTime: '2026-10-19T01:00:00Z', size: '100' };
   function client(http: typeof fetch) { const auth = new FakeAuth(); auth.current = accountA; return new GoogleDrive(auth, http); }
+  it('does not send a request when cancellation was already requested', async () => {
+    const http = vi.fn<typeof fetch>(); const abort = new AbortController(); abort.abort();
+    await expect(client(http).list(accountA.subject, abort.signal)).rejects.toMatchObject({ name: 'AbortError' });
+    expect(http).not.toHaveBeenCalled();
+  });
+  it('rejects an account-mismatched upload before contacting Google', async () => {
+    const snapshot = await createSnapshot(createInitialState(), { accountSubject: 'other', installationId: 'device', revision: 1, parentSnapshotId: null });
+    const http = vi.fn<typeof fetch>(); await expect(client(http).upload(accountA.subject, snapshot)).rejects.toThrow(/mismatch/);
+    expect(http).not.toHaveBeenCalled();
+  });
+  it('surfaces an invalid cloud listing without treating it as an empty account', async () => {
+    const http = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ files: [{ id: 'missing-fields' }] }));
+    await expect(client(http).list(accountA.subject)).rejects.toThrow();
+  });
   it('paginates appDataFolder only and sends the authorized account token', async () => {
     const http = vi.fn<typeof fetch>().mockResolvedValueOnce(Response.json({ files: [file], nextPageToken: 'next' })).mockResolvedValueOnce(Response.json({ files: [] }));
     const files = await client(http).list(accountA.subject); expect(files).toHaveLength(1);

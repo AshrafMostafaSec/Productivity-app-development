@@ -1,5 +1,14 @@
 # Progress and handoff
 
+## 2026-10-19 — release validation
+
+- PR #3 was merged. Web CI and an unsigned Xcode 26.6 Release build succeeded on the merged application source; the IPA was uploaded as an Actions artifact.
+- Reviewed persistence, backup/recovery boundaries, reminders, reducers, and UI flows. Added regression protection for empty saved files, premature/duplicate timer completion, stale backup status after disk recovery, and deadlines with no steps.
+- Expanded core tests to 55 and browser scenarios to eight, configured for Chromium and WebKit against the production bundle.
+- Updated Vite and the Xcode tool’s UUID dependency; the full dependency audit reported zero known findings locally. Verified Xcode parser/UUID compatibility and Capacitor sync.
+- Added a gated beta release workflow that records the exact source/run, verifies both packages, and publishes checksums and evidence. See `RELEASE.md`; its release manifest records final remote test results.
+- Live Google and signed-device checks are still required. The following implementation notes describe the earlier development milestone.
+
 ## 2026-10-19 — application implementation
 
 - Continued from the merged foundation PR #1 on a new implementation branch.
@@ -30,4 +39,4 @@ The app does not enforce Screen Time blocking, create a system ActivityKit Live 
 
 ## Earlier foundation
 
-PR #1 imported the supplied source, added the Capacitor host and workflows, and documented the original local-only prototype. Its first GitHub-hosted jobs could not start because of an account-level restriction. That history does not describe the validation status of the new implementation; its Actions are intentionally deferred.
+PR #1 imported the supplied source, added the Capacitor host and workflows, and documented the original local-only prototype. Its first GitHub-hosted jobs could not start because of an account-level restriction. That initial account restriction was later resolved; the completed build evidence is described above.
