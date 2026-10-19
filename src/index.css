@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+/* iOS Light design tokens — one accent, system grays, white cards on a grouped background. */
+@theme {
+  --color-canvas: #f2f2f7;
+  --color-card: #ffffff;
+  --color-label: #000000;
+  --color-secondary: rgba(60, 60, 67, 0.6);
+  --color-tertiary: rgba(60, 60, 67, 0.3);
+  --color-separator: rgba(60, 60, 67, 0.18);
+  --color-fill: rgba(120, 120, 128, 0.12);
+  --color-fill-strong: rgba(120, 120, 128, 0.2);
+  --color-accent: #007aff;
+  --color-danger: #ff3b30;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
+  --font-arabic: 'Amiri', 'Geeza Pro', 'Noto Naskh Arabic', serif;
+
+  --animate-sheet-up: sheet-up 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-toast-in: toast-in 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-pop: pop 0.18s ease-out;
+
+  @keyframes sheet-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(-12px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.94); }
+    100% { transform: scale(1); }
+  }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-label);
+    background: #e5e5ea;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    letter-spacing: -0.01em;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
+
+  input,
+  textarea {
+    font: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Inset separators between grouped rows, like UITableView inset-grouped. */
+  .ios-group > .ios-row:not(:last-child) > .ios-row-content {
+    box-shadow: inset 0 -0.5px 0 var(--color-separator);
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+}

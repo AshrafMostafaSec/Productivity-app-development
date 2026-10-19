@@ -1,0 +1,21 @@
+/** Minutes of screen-time earned (or spent) for each action. One place to tune the economy. */
+export const REWARDS = {
+  prayerOnTime: 20,
+  prayerLate: 8,
+  sunnah: 5,
+  routineStep: 5,
+  routineDone: 10,
+  uniStep: 10,
+  adhkarSession: 10,
+  afterPrayerAdhkar: 3,
+  qiyam: 15,
+  quranGoal: 10,
+  tasbihRound: 3,
+  habit: 3,
+  resistApp: 5,
+  relockEarly: 5,
+  parkImpulse: 5,
+  skipImpulse: 15,
+  focusPerMinute: 1,
+  alarm: 10,
+} as const;

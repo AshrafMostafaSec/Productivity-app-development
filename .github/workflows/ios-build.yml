@@ -1,0 +1,60 @@
+name: iOS unsigned build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm ios:sync
+      - name: Compile unsigned iPhone app
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/ios \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+      - name: Package unsigned IPA for later signing
+        run: |
+          set -euo pipefail
+          test -d build/ios/Build/Products/Release-iphoneos/App.app
+          mkdir -p build/package/Payload
+          cp -R build/ios/Build/Products/Release-iphoneos/App.app build/package/Payload/
+          cd build/package
+          /usr/bin/zip -qr ../AnchorOS-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AnchorOS-unsigned-iphone
+          path: build/AnchorOS-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
+      - name: Explain artifact status
+        run: |
+          echo 'Unsigned device build only. Signing and provisioning are required before iPhone installation. Google backup is not implemented yet.' >> "$GITHUB_STEP_SUMMARY"
