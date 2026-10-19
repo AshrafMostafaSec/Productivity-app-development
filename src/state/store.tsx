@@ -55,7 +55,7 @@ function RecoveryScreen({ controller, runtime }: { controller: AppController; ru
     <p role="alert" className="text-secondary">{runtime.storageError}</p>
     <button className="block text-accent" onClick={() => run(() => controller.retryLoad())}>Try again</button>
     <button className="block text-accent" onClick={() => run(async () => exportText(await controller.exportOriginal(), 'AnchorOS-original-device-data.json'))}>Export original device file</button>
-    <label className="block text-accent">Choose a backup to restore<input aria-label="Choose recovery backup" type="file" accept=".json,application/json" className="mt-2 block w-full text-secondary" onChange={e => { const file = e.target.files?.[0]; if (file) run(async () => { if (file.size > 16 * 1024 * 1024) throw new Error('Choose a backup smaller than 16 MB.'); await controller.previewImport(await file.text()); }); }} /></label>
+    <label className="block text-accent">Choose a backup to restore<input aria-label="Choose recovery backup" type="file" accept=".anchorbackup,.json,application/json" className="mt-2 block w-full text-secondary" onChange={e => { const file = e.target.files?.[0]; if (file) run(async () => { if (file.size > 16 * 1024 * 1024) throw new Error('Choose a backup smaller than 16 MB.'); await controller.previewImport(await file.text()); }); }} /></label>
     {runtime.preview && <div className="space-y-3"><p>Restore the copy from {new Date(runtime.preview.snapshot.createdAt).toLocaleString()}? Your original device file will be preserved.</p><button className="text-accent" onClick={() => run(() => controller.restorePreview())}>Confirm restore</button></div>}
   </div></main>;
 }
