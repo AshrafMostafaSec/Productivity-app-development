@@ -1,0 +1,26 @@
+node_modules/
+dist/
+build/
+.cache/
+.vite/
+*.tsbuildinfo
+*.log
+.env*
+*.p12
+*.p8
+*.mobileprovision
+GoogleService-Info.plist
+.DS_Store
+.figaro/
+.figma/
+.tmp/
+.tmp-*
+plans/
+# Capacitor-generated files and Xcode user state
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/App/config.xml
+ios/App/Pods/
+ios/App/DerivedData/
+**/xcuserdata/
+**/*.xcuserstate
