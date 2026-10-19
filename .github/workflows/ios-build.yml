@@ -1,6 +1,8 @@
 name: iOS unsigned build
 
 on:
+  push:
+    branches: [codex/actions-validation]
   workflow_dispatch:
     inputs:
       google_ios_client_id:
