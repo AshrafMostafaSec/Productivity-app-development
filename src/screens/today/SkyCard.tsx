@@ -67,11 +67,11 @@ export default function SkyCard({ now, current }: { now: Date; current: PrayerId
           <p className={`text-[30px] font-bold leading-tight tracking-[-0.025em] ${text}`}>
             {pending ? `${PRAYER_NAMES[pending].en} is in` : PRAYER_NAMES[next.id].en}
           </p>
-          <p className={`font-arabic text-[26px] leading-none ${text}`}>{PRAYER_NAMES[pending ?? next.id].ar}</p>
+          <p dir="rtl" lang="ar" className={`font-arabic text-[26px] leading-none ${text}`}>{PRAYER_NAMES[pending ?? next.id].ar}</p>
         </div>
         <p className={`mt-0.5 text-[15px] ${sub}`}>
           {pending
-            ? `Until ${format12(t[next.id])}${lock ? ' · apps locked until you pray' : ''}`
+            ? `Until ${format12(t[next.id])}${lock ? ' · focus passes paused until prayer' : ''}`
             : `${format12(t[next.id])} · in ${durationLabel(next.inMinutes)}`}
         </p>
       </div>

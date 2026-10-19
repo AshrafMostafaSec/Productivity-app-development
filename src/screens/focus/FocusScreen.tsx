@@ -152,14 +152,14 @@ function ShieldPanel() {
             </div>
           ))}
         </div>
-        {lock && <p className="mt-3 rounded-[10px] bg-accent/10 px-3 py-2 text-[14px] font-medium text-accent">{lock} — apps stay locked until then.</p>}
+        {lock && <p className="mt-3 rounded-[10px] bg-accent/10 px-3 py-2 text-[14px] font-medium text-accent">{lock} — focus passes stay paused until then.</p>}
       </Card>
 
-      <Group footer="While a prayer window is open and unprayed, apps stay locked — even with minutes in the bank.">
-        <Row title="Pray before unlocking" trailing={<Toggle label="Pray before unlocking" checked={state.strictPrayerLock} onChange={() => dispatch({ type: 'shield/toggleStrict' })} />} />
+      <Group footer="Focus passes are a voluntary pause tool. This version does not block other apps on your iPhone.">
+        <Row title="Pray before a focus pass" trailing={<Toggle label="Pray before a focus pass" checked={state.strictPrayerLock} onChange={() => dispatch({ type: 'shield/toggleStrict' })} />} />
       </Group>
 
-      <Group header="Apps" footer="Tap an app to rehearse the pause you'll get when you reach for it.">
+      <Group header="Apps" footer="Rehearse a short pause before opening another app.">
         {state.apps.map((app) => {
           const open = app.unlockedUntil !== null && app.unlockedUntil > nowMs;
           const minsLeft = open ? Math.ceil((app.unlockedUntil! - nowMs) / 60_000) : 0;
@@ -168,12 +168,12 @@ function ShieldPanel() {
               key={app.id}
               leading={<IconTile tone={open ? 'accent' : 'gray'}>{app.name[0]}</IconTile>}
               title={app.name}
-              subtitle={open ? `Open · ${minsLeft} min left` : `Locked${app.blockedToday > 0 ? ` · resisted ${app.blockedToday}× today` : ''}`}
+              subtitle={open ? `Pass active · ${minsLeft} min left` : `Pass paused${app.blockedToday > 0 ? ` · resisted ${app.blockedToday}× today` : ''}`}
               onClick={() => setIntercept(app)}
               trailing={
                 open ? (
                   <Button size="sm" variant="gray" onClick={() => dispatch({ type: 'shield/lock', appId: app.id })}>
-                    Lock
+                    End
                   </Button>
                 ) : (
                   <Button

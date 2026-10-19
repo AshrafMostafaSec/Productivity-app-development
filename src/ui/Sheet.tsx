@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useDragControls } from 'motion/react';
 import { useOverlayHost } from './overlay';
@@ -19,13 +19,29 @@ interface SheetProps {
 export default function Sheet({ open, onClose, title, children, action, hideCancel, tall }: SheetProps) {
   const host = useOverlayHost();
   const drag = useDragControls();
+  const panel = useRef<HTMLDivElement | null>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    if (!open || !host) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const focusable = () => [...(panel.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex="0"]') ?? [])].filter(el => el.getClientRects().length > 0);
+    const topmost = () => Array.from(host.querySelectorAll('[role="dialog"]')).slice(-1)[0]?.contains(panel.current);
+    const frame = requestAnimationFrame(() => { if (topmost() && !panel.current?.contains(document.activeElement)) focusable()[0]?.focus(); });
+    const onKey = (event: KeyboardEvent) => {
+      if (!topmost()) return;
+      if (event.key === 'Escape') { event.preventDefault(); closeRef.current(); }
+      if (event.key === 'Tab') {
+        const items = focusable(); const first = items[0]; const last = items[items.length - 1];
+        if (!first) { event.preventDefault(); return; }
+        if (event.shiftKey && (document.activeElement === first || !panel.current?.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || !panel.current?.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+      }
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('keydown', onKey); if (previous?.isConnected) previous.focus(); };
+  }, [open, host]);
 
   if (!host) return null;
 
@@ -43,6 +59,7 @@ export default function Sheet({ open, onClose, title, children, action, hideCanc
             transition={{ duration: 0.25 }}
           />
           <motion.div
+            ref={panel}
             className={`relative flex flex-col rounded-t-[16px] bg-canvas shadow-[0_-10px_40px_rgba(0,0,0,0.14)] ${tall ? 'h-[94%]' : 'max-h-[94%]'}`}
             initial={{ y: '100%' }}
             animate={{ y: 0 }}

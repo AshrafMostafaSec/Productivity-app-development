@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react';
 import { AlarmClock, Bell, Clock, Timer, Trash2 } from 'lucide-react';
 import type { Alarm } from '../../types';
 import { useStore } from '../../state/store';
-import { clearState } from '../../state/storage';
 import { format12 } from '../../lib/time';
-import { chime, notificationPermission, requestNotificationPermission, systemNotify, type PermissionState } from '../../lib/notify';
+import { chime, notificationPermission, refreshNotificationPermission, requestNotificationPermission, testNotification, type PermissionState } from '../../lib/notify';
 import Sheet from '../../ui/Sheet';
 import Group from '../../ui/Group';
 import Row from '../../ui/Row';
@@ -13,19 +12,21 @@ import Button from '../../ui/Button';
 import Segmented from '../../ui/Segmented';
 import Field from '../../ui/Field';
 import IconTile from '../../ui/IconTile';
+import AccountSheet from './AccountSheet';
 import PrayerTimesSheet from '../deen/PrayerTimesSheet';
 import PomodoroSettingsSheet from '../focus/PomodoroSettingsSheet';
 
 const PERMISSION_COPY: Record<PermissionState, string> = {
-  granted: 'On — reminders also arrive when the app is in the background.',
-  default: 'Allow notifications to get reminders when the app isn’t open on screen.',
+  granted: 'On. The iPhone app schedules reminders with iOS. Browser reminders need the page to stay active.',
+  default: 'Allow reminders on this device. iOS may silence them based on your system settings.',
   denied: 'Blocked in your browser settings. In-app banners and sounds still work.',
-  unsupported: 'This browser doesn’t support notifications. Add AnchorOS to your Home Screen for full support.',
+  unsupported: 'System notifications are unavailable here. In-app reminders still work.',
 };
 
 export default function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { state, dispatch } = useStore();
   const [permission, setPermission] = useState<PermissionState>(notificationPermission());
+  const [accountOpen, setAccountOpen] = useState(false);
   const [timesOpen, setTimesOpen] = useState(false);
   const [timerOpen, setTimerOpen] = useState(false);
   const [editingAlarm, setEditingAlarm] = useState<Alarm | 'new' | null>(null);
@@ -33,7 +34,7 @@ export default function SettingsSheet({ open, onClose }: { open: boolean; onClos
   const n = state.notifications;
 
   useEffect(() => {
-    if (open) setPermission(notificationPermission());
+    if (open) void refreshNotificationPermission().then(setPermission);
   }, [open]);
 
   const toggle = (key: keyof typeof n) => dispatch({ type: 'notify/settings', patch: { [key]: !n[key] } });
@@ -51,7 +52,7 @@ export default function SettingsSheet({ open, onClose }: { open: boolean; onClos
                 variant="gray"
                 onClick={() => {
                   if (n.sound) chime();
-                  systemNotify('AnchorOS', 'Notifications are working.', 'test');
+                  void testNotification(n.sound).catch(() => dispatch({ type: 'toast/show', text: 'Please check notification access in your device settings.' }));
                 }}
               >
                 Test
@@ -79,7 +80,7 @@ export default function SettingsSheet({ open, onClose }: { open: boolean; onClos
             Add
           </button>
         }
-        footer="Math mission: solve 3 sums to stop it, so your brain is awake before you can fall back asleep. Alarms ring while AnchorOS is open."
+        footer="Math mission: solve 3 sums to stop it, so your brain is awake before you can fall back asleep. The iPhone app sends a daily reminder. Open AnchorOS for the math mission. Browser alarms need the page to stay active."
       >
         {state.alarms.map((a) => (
           <Row
@@ -105,13 +106,13 @@ export default function SettingsSheet({ open, onClose }: { open: boolean; onClos
         />
       </Group>
 
-      <Group header="Data" footer="Everything is stored only on this device. Nothing is uploaded.">
+      <Group header="Data" footer="Offline data stays on this device. Google backup is optional. Resetting pauses automatic backup and keeps cloud history.">
+        <Row title="Account & Backup" subtitle="Google sign-in, restore, export, and import" onClick={() => setAccountOpen(true)} chevron />
         {confirmReset ? (
           <Row
             title="Tap again to erase everything"
             destructive
             onClick={() => {
-              clearState();
               dispatch({ type: 'system/reset' });
               setConfirmReset(false);
               onClose();
@@ -127,6 +128,7 @@ export default function SettingsSheet({ open, onClose }: { open: boolean; onClos
         )}
       </Group>
 
+      <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
       <PrayerTimesSheet open={timesOpen} onClose={() => setTimesOpen(false)} />
       <PomodoroSettingsSheet open={timerOpen} onClose={() => setTimerOpen(false)} />
       <AlarmEditSheet alarm={editingAlarm} onClose={() => setEditingAlarm(null)} />

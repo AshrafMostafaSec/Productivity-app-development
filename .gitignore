@@ -24,3 +24,7 @@ ios/App/Pods/
 ios/App/DerivedData/
 **/xcuserdata/
 **/*.xcuserstate
+
+playwright-report/
+test-results/
+*.ipa

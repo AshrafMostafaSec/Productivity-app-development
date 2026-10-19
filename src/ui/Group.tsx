@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Children, type ReactNode } from 'react';
 import { AnimatePresence } from 'motion/react';
 
 interface GroupProps {
@@ -21,7 +21,7 @@ export default function Group({ header, headerAction, footer, children, classNam
       )}
       <div className="ios-group overflow-hidden rounded-[12px] bg-card">
         <AnimatePresence initial={false}>
-          {children}
+          {Children.toArray(children)}
         </AnimatePresence>
       </div>
       {footer && <p className="mt-1.5 px-4 text-[13px] leading-snug text-secondary">{footer}</p>}

@@ -11,7 +11,7 @@ import type {
   RewardSource,
 } from '../types';
 import { collectionFor } from '../data/adhkar';
-import { PRAYER_NAMES, PRAYER_ORDER, daysUntil } from '../lib/time';
+import { PRAYER_NAMES, PRAYER_ORDER, daysUntil, dayKeyOf } from '../lib/time';
 import { blankPrayers, createInitialState, idlePomodoro } from './initialState';
 import { recordFor } from './selectors';
 import { REWARDS } from './rewards';
@@ -62,6 +62,7 @@ export type Action =
   | { type: 'toast/show'; text: string }
   | { type: 'system/onboarded' }
   | { type: 'system/reset' }
+  | { type: 'system/restore'; state: AppState }
   | { type: 'adhkar/tap'; session: AdhkarSessionId; itemId: string }
   | { type: 'adhkar/reset'; session: AdhkarSessionId }
   | { type: 'qiyam/set'; rakaat?: number; witr?: boolean }
@@ -497,6 +498,8 @@ export function reducer(state: StoreState, action: StampedAction): StoreState {
       return toast(state, action.text, meta);
     case 'system/onboarded':
       return { ...state, onboarded: true };
+    case 'system/restore':
+      return rollover({ ...action.state, toast: null }, dayKeyOf(new Date(meta.now)));
     case 'system/reset':
       return { ...createInitialState(new Date(meta.now)), onboarded: true, toast: { id: meta.id, text: 'Fresh start' } };
 

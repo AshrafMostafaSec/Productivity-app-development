@@ -2,7 +2,13 @@
 
 Reviewed on 2026-10-19 from `Productivity app development.zip` and the initially empty GitHub repository.
 
-## Product and implementation
+## Implementation update — 0.2.0
+
+The new implementation resolves the original storage/backup findings with a Zod-validated vault, atomic iOS/IndexedDB persistence, account-scoped queues and rollback, native Google SDK/Drive code, recovery confirmation, portable backups, and native reminders. Fonts are bundled; sample assignment and medication-specific defaults were removed. Both workflows now require manual dispatch. See `PROGRESS.md` and the implementation PR for validation and native-device limits.
+
+The table below records findings from the original supplied prototype, not a claim that its old storage implementation is still active.
+
+## Original product and implementation
 
 AnchorOS organizes a person's day around five prayers. It uses four main tabs and short sections rather than long pages.
 
@@ -38,7 +44,7 @@ Data flows from screens through `dispatch`, then the reducer, then the persisten
 
 The source remains a React app. Figma runtime configuration is removed from Vite and the HTML shell now declares its own language, title, viewport safe-area support, and robots metadata. Capacitor provides an iOS host without rewriting the product UI. CI checks the web build and separately compiles an unsigned device app on macOS.
 
-This change does not migrate existing storage, connect Google, modify domain behavior, or represent a production release. Native compilation and device behavior must be assessed separately from a successful web build.
+The later implementation adds storage migration, Google integration source, and recovery controls. Native compilation and signed-device behavior still need separate verification; web tests cannot certify them.
 
 ## Platform references
 

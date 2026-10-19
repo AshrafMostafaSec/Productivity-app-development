@@ -3,7 +3,7 @@
 This document is the contract for anyone (human or AI) implementing features in AnchorOS.
 Follow it exactly. If the code and this doc disagree, fix one of them in the same change so they match again.
 
-The standalone repository adds a Capacitor iOS host and GitHub Actions. Domain state and screens below are unchanged. `IOS_AND_BACKUP_PLAN.md` defines the proposed Google integration; it does not describe features already shipped. `PROJECT_REVIEW.md` records the prototype's platform limits.
+The standalone app uses Capacitor, validated durable device storage, and a Google Drive snapshot controller. `IOS_AND_BACKUP_PLAN.md` describes the implementation and its verification limits. Both workflows are manual-only; do not run Actions until requested.
 
 ---
 
@@ -24,22 +24,15 @@ AnchorOS is built for an ADHD brain. Every design decision serves these rules:
 
 ## 2. Layers and data flow
 
-```
-            ┌───────────────────────── App.tsx ──────────────────────────┐
-            │ StoreProvider → PhoneFrame → OverlayProvider               │
-            │   main(tab screen) · LiveActivity · TabBar · Sheets ·      │
-            │   AlarmOverlay · Onboarding · Toast                        │
-            │   useScheduler()  ← timers, reminders, alarms              │
-            └────────────────────────────────────────────────────────────┘
- screens/*  ──read──▶  useStore().state  +  state/selectors.ts (derived)
-     │
-     └──dispatch(Action)──▶ store.tsx stamps meta {now, id}
-                                 │
-                                 ▼
-                          reducer.ts (pure)  ──▶ new StoreState
-                                 │
-                 store.tsx effects: saveState() · toast auto-dismiss · rollover check
-```
+| Step | Component | Result |
+|---|---|---|
+| Read | `useStore()` / `useSyncExternalStore` | Stable controller view with domain and save/backup status |
+| Change | `controller.dispatch(Action)` | Stamped action enters the pure reducer |
+| Validate | `storage/schema.ts` | Complete v2 state must validate before a commit |
+| Save | `Repository` → native atomic file or IndexedDB | State/revision/pending-backup metadata committed together |
+| Back up | Controller → account-checked Drive adapter | Recover/confirm first, immutable upload, read-back, then acknowledgment |
+
+Account and import/restore screens call controller operations, which restore through `system/restore` reducer actions. Native and HTTP work never runs inside the reducer. Toasts remain transient. Per-account rollback state lives outside AppState in the device vault.
 
 **Layer rules (imports may only point downward):**
 
@@ -48,7 +41,8 @@ AnchorOS is built for an ADHD brain. Every design decision serves these rules:
 | `screens/`, `shell/` | `ui/`, `state/`, `lib/`, `data/`, `hooks/`, `types` | contain reducer logic |
 | `hooks/` | `state/`, `lib/` | render UI |
 | `ui/` | `ui/`, `lib/notify` (haptics), `state/store` (Toast only) | know about domain rules |
-| `state/` | `types`, `lib/time`, `data/` | import React components or browser APIs (except `store.tsx` and `storage.ts`) |
+| `state/reducer.ts` | `types`, `lib/time`, `data/`, pure selectors | import React components, storage, HTTP, or native APIs |
+| `state/controller.ts` | reducer, schemas, injected repository/auth/Drive services | render UI or persist credentials |
 | `lib/`, `data/` | `types` | import from `state/` or `ui/` |
 
 ---
@@ -108,10 +102,13 @@ The timer is driven by the absolute `endsAt`, never by counting ticks, so it sur
 
 ### 3.5 Persistence and migration
 
-- Storage key `anchoros:v1`. The payload carries `version` (currently **2**).
-- `loadState()` merges the saved payload over `createInitialState()`, so new fields appear automatically.
-- When you rename or reshape a field: bump `version` in `types.ts` and `initialState.ts`, then add a migration branch in `storage.ts`.
-- Rollover runs on load, every 60 s, and on `visibilitychange`.
+- AppState remains version 2; the device vault has its own format version 1.
+- The iOS backend writes one protected JSON file atomically on a serial queue; the browser uses an IndexedDB transaction and a Web Lock for one active writer.
+- `storage/schema.ts` validates every field and rejects unsupported versions/unsafe keys. It explicitly migrates old v1 state; unknown malformed saves are preserved, not reset.
+- Account data, dirty revision, verified head/hash/time, preferences, and account-scoped rollback are committed together. The repository serializes writes; failures stay visible and block cloud uploads.
+- Legacy `anchoros:v1` localStorage is read once when no vault exists and retained as a recovery copy.
+- Rollover runs on startup, each minute, and on activation; a changed day is persisted and marked dirty. Restore clears transient notifications/unlocks and pauses a running timer before applying rollover.
+- See the backup guide for recovery choices, identity boundaries, retry/retention, and acknowledgment rules.
 
 ---
 
@@ -132,7 +129,7 @@ Delivery (`lib/notify.ts`):
 
 - App visible → in-app toast. App hidden → system `Notification` (if permission was granted).
 - Sound comes from `chime()` (WebAudio, no assets) when `notifications.sound` is on. Haptics use `navigator.vibrate`.
-- **Limit:** web reminders only fire while the app is open, foreground or background. Reminders while it is closed would need a Service Worker plus Push. That is a planned extension (see §9).
+- **Browser limit:** reminders need an active JavaScript page. The iPhone host separately schedules native local notifications through `useNativeReminders`; daily alarm reminders repeat, and prayer/deadline reminders cover a rolling three-day window. Native notifications do not run the math overlay while the app is closed.
 
 To add a reminder: add a toggle to `NotificationSettings` (if needed), add a block in `tick()` with a unique daily key, then add a row in `SettingsSheet`.
 
@@ -249,13 +246,13 @@ Patterns:
 4. **Selectors.** Put derived values in `selectors.ts`. If the feature should appear in progress tracking, add it to `DayRecord` and `recordFor()`.
 5. **Reminders (optional).** Add a block to `useScheduler`, plus a toggle in `NotificationSettings` and in `SettingsSheet`.
 6. **UI.** Pick the tab, then a new or existing `SubTabs` section, then compose from `ui/` primitives. Put details or forms in a `Sheet` file named `XSheet.tsx` next to the screen.
-7. **Migration.** If you changed existing persisted shapes, bump `version` and migrate in `storage.ts`.
+7. **Migration.** If you changed existing persisted shapes, bump `version`, update the schema, and add an explicit migration in `storage/schema.ts`.
 8. **Verify.** Run `node_modules/.bin/tsc --noEmit -p .`, then `pnpm build`.
 9. **Docs.** Update this file and `AGENTS.md` if structure or rules changed.
 
 ### Done means
 
-- No TypeScript errors and the build passes.
+- No TypeScript errors; meaningful core and browser tests pass; production build and native reference checks pass. Native compilation/device claims require actual Xcode/device results.
 - Data survives reload, and daily data resets on a new day.
 - The UI uses only tokens and primitives, every new section fits about one screen, and empty states are written.
 - Rewards can't be farmed by toggling.
@@ -270,14 +267,6 @@ Patterns:
 
 ---
 
-## 9. Planned extensions (in priority order)
+## 9. Future optional extensions
 
-The immediate priority is reliable storage, Google account recovery, and a signed iPhone build as detailed in `IOS_AND_BACKUP_PLAN.md`. The original web extension ideas below remain a backlog, not the current delivery order. A Service Worker alone cannot guarantee scheduled reminders on a closed iOS app.
-
-1. **PWA + push.** Manifest, Service Worker, and scheduled push so prayer, Pomodoro, and alarm reminders fire while the app is closed.
-2. **Prayer time calculation** from location (with consent), keeping manual override.
-3. **Export / import backup** (JSON) from Settings → Data.
-4. **Recurring weekly lecture schedule** in Uni, so it can suggest Pomodoro blocks between lectures.
-5. **Code-split** heavy sheets (Insights, Settings) with `React.lazy` to keep the main chunk small.
-
-Each extension must follow §7 and keep the principles in §1.
+Google backup, native reminders, portable export/import, and code splitting are implemented in source. Remaining optional work includes location-consented prayer calculation, recurring lecture timetables, true Screen Time shielding, and an ActivityKit extension. Keep unavailable system behavior explicit in the UI and complete signed-device checks before making capability claims.

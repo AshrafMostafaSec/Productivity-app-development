@@ -1,28 +1,33 @@
 # Progress and handoff
 
-## 2026-10-19 — foundation
+## 2026-10-19 — application implementation
 
-- Located `AshrafMostafaSec/Productivity-app-development`; it was empty.
-- Reviewed the supplied source, state flow, screens, storage, scheduler, and Figma runtime configuration.
-- Verified the original TypeScript check and Vite build successfully.
-- Kept the existing UI and domain behavior; added a standalone configuration and Capacitor host.
-- Added GitHub Actions for web checks and an unsigned iPhone build.
-- Defined Google account/Drive backup, recovery gates, retention, conflict handling, and device test requirements.
+- Continued from the merged foundation PR #1 on a new implementation branch.
+- Replaced unvalidated localStorage saves with a validated versioned repository: native atomic protected files and browser IndexedDB with a single-window writer lock.
+- Added a scoped durable backup queue, migration/recovery, portable exports/imports, confirmation previews, and per-account rollback.
+- Implemented the Google Sign-In native bridge, account-checked Drive adapter, immutable snapshots, overwrite prevention, read-back verification, retries, retention, and account switch cancellation.
+- Added Account & Backup settings and explicit saved/pending/paused/error states.
+- Added native notification scheduling, daily wake-up notifications, callback handling, public OAuth configuration, a privacy manifest, and a shared Xcode scheme.
+- Bundled licensed fonts, removed the sample assignment/medication-specific defaults, clarified voluntary focus passes, split screen bundles, fixed animation keys, and kept nested-sheet keyboard focus inside the top sheet.
+- Changed both GitHub Actions workflows to manual-only. No workflow dispatch or remote build was requested during this implementation.
 
-## Next implementation task
+## Validation
 
-Start milestone 1 in `IOS_AND_BACKUP_PLAN.md`: validate saved state and migrations, introduce a durable local repository and backup queue, and add local export/import. Do not upload initial demo data to cloud storage. Then integrate real Google authorization and run the reinstall recovery test.
+Application/test TypeScript checks passed; 39 core tests and 4 Playwright mobile-viewport browser tests passed. The production build, Capacitor sync, native project/config checks, full Xcode project parsing, and valid/invalid OAuth configuration checks passed locally. The browser checks include export/import and reload, invalid imports, concurrent tabs, sheet navigation, and the four tabs.
 
-## Pending owner configuration
+The iOS project was generated/synced on Linux; Xcode is not available here. The Google SDK bridge has not been exercised against a real account or signed iPhone. No IPA was produced in this turn. Actual OAuth, signing, device notifications, and reinstall recovery need the later signed-device checks in `SETUP.md`.
 
-Confirm the final bundle identifier, provide Google iOS OAuth client configuration, and choose the Apple installation/signing route. No passwords or tokens belong in this document.
+## Owner configuration before device testing
 
-## Validation record
+1. Configure the permanent Google Cloud iOS OAuth client for `com.ashrafmostafa.anchoros`, enable Drive API, and set the public `GOOGLE_IOS_CLIENT_ID` variable/input.
+2. Choose the Apple signing/re-signing route and keep the bundle identity stable.
+3. When ready, merge the implementation PR and manually run the workflows. Inspect the macOS compile result before claiming native build success.
+4. Complete the real-device offline/reinstall recovery checklist before relying on cloud backup for important data.
 
-- Original and standalone TypeScript checks and production Vite builds passed locally.
-- Capacitor iOS generation and sync passed. Workflow YAML, iOS plist files, and asset catalog JSON validated.
-- The local staged Git tree matched the uploaded GitHub tree exactly.
-- The first Web CI and iOS runs were prevented from starting by a GitHub account-level restriction, before any workflow step ran. No remote compilation or IPA artifact was produced. Resolve the restriction shown in Actions, then rerun the jobs.
-- [Web run](https://github.com/AshrafMostafaSec/Productivity-app-development/actions/runs/39183593498) and [iOS run](https://github.com/AshrafMostafaSec/Productivity-app-development/actions/runs/39183593542).
+## Platform boundaries
 
-Web build success alone does not certify native device behavior. Google login, cloud backup, signed installation, native notifications, and Screen Time remain unverified until their milestones are implemented.
+The app does not enforce Screen Time blocking, create a system ActivityKit Live Activity, or force a closed-app math alarm. It supports voluntary focus passes, the in-app focus pill/math mission, and native scheduled reminders. No guaranteed hourly background backup is claimed.
+
+## Earlier foundation
+
+PR #1 imported the supplied source, added the Capacitor host and workflows, and documented the original local-only prototype. Its first GitHub-hosted jobs could not start because of an account-level restriction. That history does not describe the validation status of the new implementation; its Actions are intentionally deferred.

@@ -1,31 +1,52 @@
-# Setup requirements
+# Configure and build AnchorOS
 
-## Working foundation
+## Local development
 
-Use Node 24, pnpm 11.25.0, `pnpm install --frozen-lockfile`, and `pnpm check`. For native development, use a Mac with Xcode 26 or newer. The existing `ios/` folder is source-controlled: use `pnpm ios:sync`, then `pnpm ios:open`. Do not regenerate it after adding native code or extensions.
+Install Node 24 and pnpm 11.25.0, then run `pnpm install --frozen-lockfile`. `pnpm check` validates application/test types, runs the core tests, and builds the app. Install the Playwright Chromium browser with `pnpm exec playwright install chromium`, then run `pnpm test:e2e`.
 
-The iOS workflow needs no signing secret because it builds an unsigned device app. Its artifact cannot be installed directly. The workflow only claims success after Xcode returns successfully and the application bundle is found.
+`ANCHOROS_CHROMIUM_PATH` can point at a compatible existing Chromium executable for a constrained development environment. The test suite does not depend on that option in normal installations.
 
-## Google setup for milestone 2
+No Google account or Apple signing material is needed for local-only use. Browser sessions support export/import and durable device storage; Google authorization is implemented in the iPhone host.
 
-No Google credentials are needed to run the current prototype. For real sign-in and backup:
+## Google Cloud
 
-1. Confirm the bundle identifier. Current proposal: `com.ashrafmostafa.anchoros`.
-2. Create or select the permanent Google Cloud project and enable Google Drive API.
-3. Configure the OAuth consent application and test users where applicable. Review the current consent/testing and token-lifetime rules before enabling unattended backup.
-4. Create an **iOS** OAuth client matching the final bundle identifier.
-5. Supply the iOS client ID and its reversed URL scheme. These are public application configuration, not account passwords.
-6. Integrate the native SDK/bridge and Info.plist callback entries, then authorize the `drive.appdata` scope through the app.
-7. Test a full sign-in/upload/delete/reinstall/restore cycle on a signed device.
+1. Use the permanent Google Cloud project for this app and enable **Google Drive API**.
+2. Configure the OAuth consent application. Add the intended Google account as a test user if the consent app is in testing. Check Google's current testing/token rules before relying on unattended backups.
+3. Register an **iOS OAuth client** for `com.ashrafmostafa.anchoros`. If you change the bundle identifier, update both the Capacitor configuration and Xcode project before registering the matching client.
+4. Save the public client ID as the GitHub repository variable **GOOGLE_IOS_CLIENT_ID**, or enter it in the iOS workflow's manual input. No client secret or service account is needed.
+5. For a local Mac build, set `GOOGLE_IOS_CLIENT_ID` when running `pnpm ios:sync`. `scripts/configure-ios.py` writes `GIDClientID` and the reversed callback URL scheme to Info.plist. It refuses malformed IDs. A build without an ID keeps Google sign-in disabled and local backups available.
+6. Build and sign the app. In **Settings → Account & Backup**, choose **Sign in with Google**, then allow application-specific Drive storage. On a new account connection, choose a cloud copy to restore or explicitly choose which device data to keep.
+7. Wait for a completed backup time before uninstalling. Perform the reinstall test below.
 
-Do not put a Google password, access token, refresh token, client secret, or service-account key in the repository. A personal Drive backup uses the person's Google authorization, not a shared service account. This plan does not require server OAuth credentials unless a backend is added later.
+OAuth client IDs are public app configuration. Google passwords, access/refresh tokens, client secrets, and service-account keys must not be put in source control. The Google SDK handles refresh credentials natively; the JavaScript bridge only requests a short-lived access token when calling Drive.
 
-## Apple signing decision
+## Apple installation
 
-Choose the supported installation route before implementing the signed release job: local Xcode signing/re-signing for personal use, or an Apple Developer Program distribution route such as TestFlight. Keep the app identifier stable and verify the capabilities supported by that route.
+The Xcode project targets iOS 16+, uses GoogleSignIn 9.0.0 through Swift Package Manager, and includes the required local native plugin, callback handlers, shared build scheme, and file-access privacy reason. Capacitor sync updates its own generated plugin package references.
 
-If using certificate/profile signing in CI, add the certificate, certificate password, provisioning profile, and temporary Keychain password through GitHub Actions secrets. Use the official GitHub signing guide; keep signing outside pull-request jobs and clean the temporary Keychain/profile after the job. No signing secrets have been requested or installed by this foundation.
+Choose your supported installation route: local Xcode signing/re-signing for personal use, or an Apple Developer Program route such as TestFlight. An unsigned IPA cannot be installed directly. Keep the bundle ID and the Google project/client identity stable. A re-signing tool that changes the bundle ID may break Google authorization; reconfiguration is required if the app identity changes.
 
-## Before real data
+No Apple ID password is required by the unsigned workflow. If signed CI distribution is added later, keep the certificate/profile and their passwords in protected GitHub Actions secrets, outside pull-request jobs. Screen Time/ActivityKit extensions and a forced closed-app alarm are outside this release's capabilities.
 
-Finish validated persistence and backup/restore first. Current sample prayer times, currency, assignments, routines, and alarms are examples from the supplied design. Current localStorage data can be lost when the app is removed; no Google recovery exists yet.
+## Run GitHub Actions when ready
+
+The workflows are manual only, as requested. After merging the implementation PR:
+
+1. Open **Actions → Web CI → Run workflow** for types, core tests, browser tests, and web assets.
+2. Open **Actions → iOS unsigned build → Run workflow** to sync the configured app, validate native references, compile on macOS, and package the unsigned IPA.
+3. Download **AnchorOS-unsigned-iphone** after the job succeeds, then sign/provision using your chosen installation route.
+
+No Actions run was requested for this implementation. If GitHub still blocks execution, use the account-level reason shown in its job annotations; this cannot be resolved by changing app code.
+
+## Required signed-device checks
+
+Test on the target iPhone before trusting cloud recovery:
+
+- Sign in, grant Drive access, create a task/assignment/expense/prayer log, and wait for **Backed up**.
+- Turn off the network, edit, restart the app, reconnect, and verify the pending changes upload.
+- Sign out and into another account. Confirm their data and rollback copies stay separate.
+- Export/import a copy and confirm restore only happens after review.
+- Delete the app, reinstall a signed build with the same bundle/client identity, sign in, and restore the verified cloud copy before enabling uploads.
+- Lock the screen and test prayer, timer, and daily alarm notifications. System notification settings can silence delivery. Reopen at least every few days to refresh rolling prayer/deadline reminders.
+
+Only acknowledged cloud snapshots survive loss of the device container. Background flushes are best effort; there is no guaranteed hourly upload while the app is closed.

@@ -1,10 +1,12 @@
 name: iOS unsigned build
 
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
+    inputs:
+      google_ios_client_id:
+        description: 'Optional public iOS OAuth client ID; defaults to the repository variable'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -17,6 +19,8 @@ jobs:
   build:
     runs-on: macos-latest
     timeout-minutes: 30
+    env:
+      GOOGLE_IOS_CLIENT_ID: ${{ inputs.google_ios_client_id || vars.GOOGLE_IOS_CLIENT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -26,7 +30,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - run: pnpm test
       - run: pnpm ios:sync
+      - run: pnpm ios:verify
       - name: Compile unsigned iPhone app
         run: |
           set -euo pipefail
@@ -57,4 +63,4 @@ jobs:
           retention-days: 7
       - name: Explain artifact status
         run: |
-          echo 'Unsigned device build only. Signing and provisioning are required before iPhone installation. Google backup is not implemented yet.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Unsigned device build only. Signing and provisioning are required before iPhone installation. Google sign-in needs the configured iOS OAuth client ID and signed-device validation.' >> "$GITHUB_STEP_SUMMARY"
