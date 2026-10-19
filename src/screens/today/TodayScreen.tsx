@@ -29,7 +29,7 @@ interface Props {
 }
 
 export default function TodayScreen({ onNavigate, onOpenInsights, onOpenSettings }: Props) {
-  const { state } = useStore();
+  const { state, runtime } = useStore();
   const now = useNow();
   const { section, direction, setSection } = useSection<Section>(SECTIONS);
   const [adding, setAdding] = useState<PrayerId | null>(null);
@@ -39,7 +39,7 @@ export default function TodayScreen({ onNavigate, onOpenInsights, onOpenSettings
 
   return (
     <Screen
-      eyebrow={`${gregorianLabel(now)}${hijri ? ` · ${hijri}` : ''}`}
+      eyebrow={`${runtime.account?.name ? `Hello, ${runtime.account.name} · ` : ''}${gregorianLabel(now)}${hijri ? ` · ${hijri}` : ''}`}
       title="Today"
       action={
         <>

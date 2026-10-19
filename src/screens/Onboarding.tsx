@@ -25,7 +25,7 @@ const PAGES = [
   {
     icon: Bell,
     title: 'Gentle reminders',
-    body: 'Allow prayer, study and wake-up reminders. Set your real prayer times, then connect Google in Settings → Account & Backup.',
+    body: 'Allow prayer, study and wake-up reminders. Set your real prayer times, then choose an external folder in Settings → Profile & Backups.',
   },
 ];
 

@@ -106,8 +106,8 @@ export default function SettingsSheet({ open, onClose }: { open: boolean; onClos
         />
       </Group>
 
-      <Group header="Data" footer="Offline data stays on this device. Google backup is optional. Resetting pauses automatic backup and keeps cloud history.">
-        <Row title="Account & Backup" subtitle="Google sign-in, restore, export, and import" onClick={() => setAccountOpen(true)} chevron />
+      <Group header="Data" footer="Activities stay on this device. Encrypted copies in your chosen Files folder help you restore after reinstalling. Resetting pauses file backups.">
+        <Row title="Profile & Backups" subtitle="Local password, encrypted file copies, and restore" onClick={() => setAccountOpen(true)} chevron />
         {confirmReset ? (
           <Row
             title="Tap again to erase everything"

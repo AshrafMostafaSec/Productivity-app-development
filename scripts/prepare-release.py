@@ -30,14 +30,18 @@ with zipfile.ZipFile(root / 'AnchorOS-unsigned.ipa') as ipa:
     assert ipa.read(base + 'public/index.html'), 'Bundled web app is missing'
     plistlib.loads(ipa.read(base + 'PrivacyInfo.xcprivacy'))
     assert not any(name.endswith(('.p12', '.p8', '.mobileprovision')) for name in ipa.namelist()), 'Unexpected signing material'
-    oauth_configured = bool(info.get('GIDClientID'))
+    assert not info.get('GIDClientID'), 'Removed sign-in configuration remains'
+    assert any('anchorbackup' in item.get('UTTypeTagSpecification', {}).get('public.filename-extension', []) for item in info.get('UTExportedTypeDeclarations', [])), 'Backup file type is missing'
 with zipfile.ZipFile(root / 'AnchorOS-web.zip') as web:
     assert web.testzip() is None and web.read('index.html'), 'Web bundle is incomplete'
 
+native_check = (root / 'ios' / 'native-crypto-check.txt').read_text()
+assert 'match WebCrypto (2 vectors)' in native_check, 'Native crypto interoperability evidence is missing'
+(root / 'native-crypto-check.txt').write_text(native_check)
 checksums = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in ['AnchorOS-unsigned.ipa', 'AnchorOS-web.zip']}
 run_url = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
 manifest = {'version': version, 'commit': os.environ['GITHUB_SHA'], 'workflowRun': run_url,
-            'unsigned': True, 'googleOAuthConfigured': oauth_configured,
+            'unsigned': True, 'access': 'local-name-and-password', 'backup': 'encrypted-user-selected-Files-folder',
             'unitTestsPassed': unit['numPassedTests'], 'browserTestsPassed': browser['expected'],
             'knownDependencyVulnerabilities': audit['metadata']['vulnerabilities'], 'sha256': checksums}
 (root / 'build-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
@@ -56,9 +60,13 @@ Built from `{manifest['commit']}`. [Build and test evidence]({run_url}).
 
 The IPA is unsigned. It must be signed and provisioned before installation on an iPhone. The web ZIP needs a local/static HTTP server.
 
-Google iOS OAuth client configured in this build: **{'yes' if oauth_configured else 'no'}**. Google sign-in and Drive backup require OAuth setup and validation on a signed physical device. Automated cloud tests use test doubles; no live Google account was used.
+Create a local name and password on first launch. Backups use AES-256-GCM with PBKDF2-SHA256 (600,000 iterations). Native CryptoKit/CommonCrypto interoperability with WebCrypto passed, including Unicode passwords and authenticated-header tamper rejection; see native-crypto-check.txt. There is no online sign-in or password reset.
 
-Native notification delivery, permissions, background transitions, and reinstallation recovery still require signed-device checks. iOS does not guarantee hourly backup while the app is closed. Screen Time enforcement and real ActivityKit Live Activities are not enabled.
+In Profile & Backups, choose a Files folder outside AnchorOS and verify a completed copy before uninstalling. Deleting the app deletes its internal activities and folder permission bookmark. After reinstalling, choose a saved .anchorbackup file, enter the original password, review, and confirm the restore. Then select the folder again to resume automatic copies. Only completed backups restore later activities. Files held in a deleted provider/app folder or deleted manually cannot be recovered by AnchorOS.
+
+The local password is an app lock. Internal activities retain iOS file protection/browser origin storage; exported and external backup contents are password encrypted.
+
+Native notification delivery, permissions, background transitions, Files folder permissions/revocation, and full reinstall recovery still require signed-device checks. Automatic copies run after edits and on app lifecycle events; iOS does not guarantee hourly work while the app is closed. Screen Time enforcement and real ActivityKit Live Activities are not enabled.
 
 This is a beta for device testing, with these remaining checks stated explicitly.
 '''

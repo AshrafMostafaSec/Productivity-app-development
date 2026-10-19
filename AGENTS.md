@@ -9,7 +9,7 @@ Everything is anchored to the five daily prayers. It covers five areas:
 4. **Focus passes** — voluntary breaks cost earned minutes and pause until the current prayer is logged. OS-level Screen Time blocking is not enabled in this release.
 5. **Deen** — salah tracking, adhkar (morning, evening, after prayer, sleep), tasbih, Quran wird, qiyam al-layl, sunnah habits.
 
-Domain data lives in a validated device vault (atomic protected JSON on iOS; IndexedDB in a browser). Native Google sign-in and app-specific Drive backup are implemented in source, but require OAuth configuration and signed-device validation. Read `docs/IOS_AND_BACKUP_PLAN.md` for the target design and `docs/PROJECT_REVIEW.md` for current limitations.
+Domain data lives in a validated device vault (atomic protected JSON on iOS; IndexedDB in a browser). A local name/password gate replaces remote sign-in. Encrypted file backups use a user-selected external Files folder; bookmarks must be selected again after reinstalling. Read `docs/IOS_AND_BACKUP_PLAN.md` for the target design and `docs/PROJECT_REVIEW.md` for current limitations.
 
 > **Before changing anything, read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).**
 > It is the source of truth for structure, state, design tokens, motion, and the rules for adding features.
@@ -23,9 +23,9 @@ React + Vite + Tailwind CSS, with a Capacitor iOS host. The original Figma Make 
 - Install with `pnpm install --frozen-lockfile`; use the Node and pnpm versions in `package.json`.
 - Run `pnpm dev` only when a local preview is needed. Verify broad changes with `pnpm check`.
 - Run `pnpm ios:sync` after web or plugin changes. Commit native project changes, but not copied web assets, generated Capacitor config, credentials, or build outputs.
-- The user has authorized validation and GitHub Releases publication. Web/iOS workflows support manual dispatch, reusable calls, and pushes to `codex/actions-validation`. The release workflow runs on `codex/release-validation`, requires both checks to succeed, verifies the packages, and publishes a beta with checksums. Keep automatic main/PR triggers disabled unless requested.
-- Run `pnpm check`, `pnpm ios:verify`, and the meaningful browser checks after broad changes. Never claim real Google/device/Xcode success from mocks or web tests.
-- Keep side effects outside the reducer. Preserve account isolation, recovery gates, atomic state/metadata saves, and stale-callback cancellation. Never silently replace invalid saved data.
+- The user has authorized validation and GitHub Releases publication. Web/iOS workflows support manual dispatch, reusable calls, and pushes to `codex/actions-validation`. The release workflow runs on `codex/local-files-backup`, requires both checks to succeed, verifies the packages, and publishes a beta with checksums. Keep automatic main/PR triggers disabled unless requested.
+- Run `pnpm check`, `pnpm ios:verify`, and the meaningful browser checks after broad changes. Never claim real Files permission/device/Xcode success from mocks or web tests.
+- Keep side effects outside the reducer. Preserve profile isolation, recovery gates, atomic state/metadata saves, and stale-callback cancellation. Never silently replace invalid saved data.
 
 ## Stack
 
@@ -55,7 +55,7 @@ src/
 
   storage/              Zod state/vault schemas, migration, serial repository, IndexedDB/native backends
   backup/               Canonical snapshot validation/hashing and retention
-  services/             Google auth and bounded/cancellable Drive HTTP adapter
+  services/             Local password access, authenticated encryption, and the native Files destination
   platform/             Native bridge, file sharing, pure notification planner
 
   hooks/useScheduler.ts Reminders, Pomodoro phase changes, alarms (runs once in App)

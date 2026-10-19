@@ -3,7 +3,7 @@ import { notificationPlan } from '../src/platform/notificationPlan';
 import { createInitialState } from '../src/state/initialState';
 import { dayKeyOf } from '../src/lib/time';
 import { retentionCandidates } from '../src/backup/retention';
-import type { CloudFile } from '../src/services/googleDrive';
+import type { BackupFile } from '../src/services/filesBackup';
 
 describe('native reminder plan', () => {
   const now = new Date(2026, 9, 19, 4, 0);
@@ -27,7 +27,7 @@ describe('native reminder plan', () => {
 });
 it('retains 20 recent revisions, daily copies for 30 days, and unknown-format files', () => {
   const now = Date.UTC(2026, 9, 19, 12);
-  const files: CloudFile[] = Array.from({ length: 100 }, (_, i) => ({ id: `${i}`, name: 'b', createdTime: new Date(now - i * 86400_000 / 2).toISOString(), appProperties: { format: '1' } }));
+  const files: BackupFile[] = Array.from({ length: 100 }, (_, i) => ({ id: `${i}`, name: 'b', createdTime: new Date(now - i * 86400_000 / 2).toISOString(), appProperties: { format: '1' } }));
   const deleted = retentionCandidates(files, now);
   expect(deleted.every(f => Number(f.id) >= 20)).toBe(true);
   const kept = files.filter(f => !deleted.includes(f));

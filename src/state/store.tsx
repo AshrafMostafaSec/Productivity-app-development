@@ -3,19 +3,20 @@ import { App as NativeApp } from '@capacitor/app';
 import { AppController, type AppView } from './controller';
 import { Repository } from '../storage/repository';
 import { deviceBackend } from '../storage/backend';
-import { GoogleAuth } from '../services/googleAuth';
-import { GoogleDrive } from '../services/googleDrive';
+import { LocalIdentity } from '../services/localIdentity';
+import { LocalAccess } from '../services/localAccess';
+import { FilesBackup } from '../services/filesBackup';
 import { isIOS } from '../platform/native';
 import type { Action, StoreState } from './reducer';
 import { dayKeyOf } from '../lib/time';
 import { exportText } from '../platform/files';
 
-const auth = new GoogleAuth();
-export const appController = new AppController(new Repository(deviceBackend(), () => localStorage.getItem('anchoros:v1')), auth, new GoogleDrive(auth));
-interface StoreValue { state: StoreState; dispatch: (action: Action) => void; runtime: AppView; controller: AppController }
+export const localAccess = new LocalAccess(deviceBackend());
+export function makeController(access: LocalAccess) { return new AppController(new Repository(access.backend, () => localStorage.getItem('anchoros:v1')), new LocalIdentity(() => access.profile), new FilesBackup(access)); }
+interface StoreValue { state: StoreState; dispatch: (action: Action) => void; runtime: AppView; controller: AppController; lock: () => Promise<void> }
 const StoreContext = createContext<StoreValue | null>(null);
 
-export function StoreProvider({ children, controller = appController }: { children: ReactNode; controller?: AppController }) {
+export function StoreProvider({ children, controller, access }: { children: ReactNode; controller: AppController; access: LocalAccess }) {
   const runtime = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   useEffect(() => {
     void controller.initialize();
@@ -44,7 +45,7 @@ export function StoreProvider({ children, controller = appController }: { childr
   }, [runtime.state.toast, controller]);
   if (!runtime.ready) return <div className="flex min-h-dvh items-center justify-center bg-canvas text-secondary" role="status">Opening your day…</div>;
   if (runtime.blocked) return <RecoveryScreen controller={controller} runtime={runtime} />;
-  return <StoreContext.Provider value={{ state: runtime.state, dispatch: controller.dispatch, runtime, controller }}>{children}</StoreContext.Provider>;
+  return <StoreContext.Provider value={{ state: runtime.state, dispatch: controller.dispatch, runtime, controller, lock: async () => { await controller.flush(); controller.dispose(); access.lock(); } }}>{children}</StoreContext.Provider>;
 }
 
 function RecoveryScreen({ controller, runtime }: { controller: AppController; runtime: AppView }) {
@@ -54,7 +55,7 @@ function RecoveryScreen({ controller, runtime }: { controller: AppController; ru
     <p role="alert" className="text-secondary">{runtime.storageError}</p>
     <button className="block text-accent" onClick={() => run(() => controller.retryLoad())}>Try again</button>
     <button className="block text-accent" onClick={() => run(async () => exportText(await controller.exportOriginal(), 'AnchorOS-original-device-data.json'))}>Export original device file</button>
-    <label className="block text-accent">Choose a backup to restore<input aria-label="Choose recovery backup" type="file" accept=".json,application/json" className="mt-2 block w-full text-secondary" onChange={e => { const file = e.target.files?.[0]; if (file) run(async () => { if (file.size > 8 * 1024 * 1024) throw new Error('Choose a backup smaller than 8 MB.'); await controller.previewImport(await file.text()); }); }} /></label>
+    <label className="block text-accent">Choose a backup to restore<input aria-label="Choose recovery backup" type="file" accept=".anchorbackup,.json,application/json" className="mt-2 block w-full text-secondary" onChange={e => { const file = e.target.files?.[0]; if (file) run(async () => { if (file.size > 16 * 1024 * 1024) throw new Error('Choose a backup smaller than 16 MB.'); await controller.previewImport(await file.text()); }); }} /></label>
     {runtime.preview && <div className="space-y-3"><p>Restore the copy from {new Date(runtime.preview.snapshot.createdAt).toLocaleString()}? Your original device file will be preserved.</p><button className="text-accent" onClick={() => run(() => controller.restorePreview())}>Confirm restore</button></div>}
   </div></main>;
 }

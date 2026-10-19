@@ -1,66 +1,37 @@
 # AnchorOS
 
-A personal iPhone productivity app for routines, study, prayer, focus, and daily spending. Built from the supplied design with React, TypeScript, and Capacitor.
+A personal, prayer-anchored productivity app with Today, Deen, Focus, and Wallet screens, built from the supplied design with React and a Capacitor iPhone host.
 
-## Implemented
+## Local profile and recovery
 
-- The four original areas: Today, Deen, Focus, and Wallet.
-- Validated, versioned device storage: atomic protected files on iOS and transactional IndexedDB in a browser.
-- Native Google Sign-In integration and Google Drive app-specific snapshot backups.
-- Automatic backup after changes, retries, account isolation, overwrite prevention, backup history, and confirmed restore.
-- Portable JSON export/import, recovery from damaged saves, and a previous-data rollback copy for each account.
-- Native iPhone reminders, daily wake-up notifications, and reconciliation after returning to the app.
-- Bundled fonts and split screens; no network is needed for local use after installation.
-- GitHub Actions for web checks, an unsigned iPhone IPA, and gated beta releases.
+- Choose a name and password on first launch. Cold launches require the password; Settings includes Lock app.
+- Activities save on the device using validated atomic iOS files or browser IndexedDB.
+- In the iPhone app, choose a Files folder outside AnchorOS for automatic encrypted backups. Copies run after edits and on app lifecycle events; their successful read-back time is shown.
+- Export encrypted `.anchorbackup` files in either the app or browser. After reinstalling, select a saved file, enter its original password, review, and confirm the restore. Then select the external folder again to resume automatic copies.
+- Native prayer, deadline, timer, and daily alarm reminders supplement the in-app scheduler.
 
-Google sign-in needs the iOS OAuth client configuration and a signed device. The native Swift source compiled successfully with Xcode 26.6 on GitHub Actions. Signed-device and live Google validation remain outstanding.
+Backups use password-derived AES-256-GCM with PBKDF2-SHA256 and authenticated metadata. The password is a local app lock; internal activities retain native file protection/browser origin storage. No remote sign-in or password reset service is used.
 
-App blocking through Screen Time, a system Live Activity, and a forced math alarm while the app is closed are not enabled. Focus passes are voluntary; the floating focus pill is inside the app. The iPhone app sends a daily wake-up notification and opens the math mission when tapped.
+Deleting the app removes its internal files and saved folder permission. Recovery requires a completed copy saved outside that container and its original password. Files deleted manually, lost with the device, or deleted with their provider cannot be restored by AnchorOS. iOS does not guarantee scheduled work while the app is closed.
 
-## Run and verify
-
-Use Node 24 and pnpm 11.25.0.
+## Build and validate
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm dev
 pnpm check
+pnpm ios:sync
+pnpm ios:verify
 pnpm exec playwright install chromium webkit
 pnpm test:e2e
 ```
 
-`pnpm check` checks application and test types, runs unit/integration tests, and builds the production app. Browser tests cover export/import, damaged imports, reload, concurrent windows, nested sheets, and all four tabs.
+Use Node 24 and pnpm 11.25.0. Web UI tests use the production bundle on Chromium and WebKit at an iPhone viewport. The native job also checks shared CryptoKit/CommonCrypto code against WebCrypto vectors before Xcode compilation.
 
-## iPhone project
+The unsigned IPA needs Apple signing/provisioning. A successful build does not replace signed-iPhone checks for Files permissions, folder/provider behavior, notifications, and deletion/reinstallation recovery.
 
-On a Mac with Xcode 26 or newer:
-
-```sh
-pnpm ios:sync
-pnpm ios:verify
-pnpm ios:open
-```
-
-The app targets iOS 16 or newer. To configure Google before syncing:
-
-```sh
-GOOGLE_IOS_CLIENT_ID=your-ios-client-id.apps.googleusercontent.com pnpm ios:sync
-```
-
-Use the exact client ID from Google Cloud; the configuration script validates it and generates the callback scheme. The ID above is illustrative, not a working credential. See [setup](docs/SETUP.md) for the complete steps.
-
-## Build later
-
-The workflows support manual dispatch and isolated validation branches. The gated beta workflow builds and tests the exact source commit before publishing the IPA, web ZIP, checksums, manifest, and validation notes. See [release validation](docs/RELEASE.md). The iOS workflow accepts the public iOS client ID as an input or reads the `GOOGLE_IOS_CLIENT_ID` repository variable. It does not require a Google password or token.
-
-The iOS artifact is `AnchorOS-unsigned.ipa`. Signing and provisioning are still needed to install it on an iPhone. Keep the bundle identifier `com.ashrafmostafa.anchoros` stable across re-signing to match Google configuration.
-
-## Project guide
-
+- [Setup and real-device checklist](docs/SETUP.md)
 - [Architecture](docs/ARCHITECTURE.md)
-- [Backup and recovery behavior](docs/IOS_AND_BACKUP_PLAN.md)
-- [Google and Apple setup](docs/SETUP.md)
-- [Project review and platform limits](docs/PROJECT_REVIEW.md)
-- [Progress and validation](docs/PROGRESS.md)
+- [Local access and backup design](docs/IOS_AND_BACKUP_PLAN.md)
+- [Release validation](docs/RELEASE.md)
 
-Backups contain personal data. Credentials, personal backups, Apple certificates, and provisioning profiles must stay out of Git and build artifacts. Bundled font licenses are in `public/licenses/`.
+OS-level Screen Time blocking, system ActivityKit Live Activities, and forced closed-app math alarms are not enabled. Focus passes and the floating focus timer remain in-app features.

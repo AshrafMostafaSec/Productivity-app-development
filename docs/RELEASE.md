@@ -1,25 +1,13 @@
-# Validation and beta releases
+# Local-profile beta releases
 
-The release workflow is authorized by the owner. A push to `codex/release-validation` runs the reusable web and iOS workflows against that exact commit. Manual dispatch is also available. A release job with `contents: write` runs only on that branch and only after both builds pass. Test/build jobs have read-only repository permissions. Main and pull-request pushes do not publish releases.
+The owner has authorized validation and GitHub Releases publication. A push to `codex/local-files-backup` runs reusable web and iOS workflows against that exact commit. Manual dispatch remains available. Publication runs only on that branch and after both jobs pass. Test/build jobs have read-only repository access; only the publishing job has contents write access. Main and pull-request pushes do not publish releases.
 
-The workflow publishes `v0.2.0-beta.<workflow-run-number>` as a prerelease, attaching:
+The workflow tags `v<package-version>-beta.<run-number>` and attaches the actual unsigned IPA, production web ZIP, SHA256SUMS, exact-source manifest, verification notes, and native-crypto-check.txt. The publishing gate verifies JSON test reports, zero audit findings, native crypto evidence, ZIP integrity, app identity/version, arm64 executable, privacy manifest, backup file type registration, and bundled HTML before publishing.
 
-- `AnchorOS-unsigned.ipa`: the actual Xcode Release build for arm64 iPhones.
-- `AnchorOS-web.zip`: the tested production web bundle; serve it over HTTP.
-- `SHA256SUMS.txt`: SHA-256 hashes of both packages.
-- `build-manifest.json`: source commit, workflow URL, test totals, audit result, and OAuth configuration state.
-- `VERIFICATION.md`: evidence and remaining device checks, also used as the release notes.
+The core suite covers schemas/migration, damaged/empty saves, atomic save queues, local password verification, authenticated encrypted backup contents, nonce uniqueness, invalid parameters, wrong-password rejection, restore confirmation, a fresh-container recovery, folder tokens/permissions, stale callbacks, retry/debounce, retention, reminders, timer/reward invariants, and existing domain flows.
 
-The publishing gate reads the JSON test reports, requires all tests to pass without skips or flaky results, and rejects known dependency audit findings. It checks ZIP integrity, app identity/version, the arm64 executable, bundled HTML, and privacy manifest before publishing. Dependency actions are pinned to reviewed release commits using Node 24.
+Ten UI scenarios run on Chromium and WebKit against the production bundle at an iPhone viewport. They include local profile creation, password re-entry after reload, lock/wrong-password behavior, portable backup export/import, damaged imports, simultaneous windows, nested sheets/tabs, offline activities, expenses/deadlines/timers, and recovery in a fresh browser context. Page exceptions and console errors fail scenarios.
 
-## Regression coverage
+The macOS job compiles the same AnchorCrypto.swift helper used by the iPhone bridge and checks WebCrypto-generated ASCII/Unicode password vectors. This validates PBKDF2, AES-GCM output/decryption, SHA-256, and tamper rejection across the two runtimes before building the iOS host.
 
-The 55 core tests cover schemas, migration, corrupt/empty saves, atomic repository queues, storage failures, account isolation, restore/rollback, read-back verification, interrupted uploads, retry/debounce/maximum backup delay, reminder scheduling, deadline status, and timer/reward invariants.
-
-Eight UI scenarios run on both Chromium and WebKit with an iPhone viewport against the production build: export/import and reload; damaged imports; simultaneous windows; nested sheets and tabs; offline thoughts converted to routines; expense add/delete and reload; deadline steps; and paused timer persistence. Page exceptions and console errors fail every scenario. WebKit coverage exercises a Safari engine; it does not replace signed-device validation.
-
-## Remaining physical-device checks
-
-This beta is unsigned. Signing and provisioning are required before installation. Configure the public `GOOGLE_IOS_CLIENT_ID` repository variable to enable Google sign-in in a later build. The current OAuth state is recorded in each release manifest.
-
-Complete `SETUP.md`'s signed-device checklist before relying on cloud backup: real Google consent/token refresh, account switching, offline edits/reconnection, notification delivery, background transitions, and reinstall/restore. Automated Drive tests use doubles. iOS does not guarantee hourly work while the app is closed. Screen Time enforcement and ActivityKit are not included.
+This is a beta for signed-device testing. The IPA is unsigned. Physical Files-provider permissions/revocation, folder bookmark persistence, native reminder delivery, background transitions, and uninstall/reinstall recovery require checks on the target iPhone. Only completed backups outside the app's container plus their original password can restore activities after deletion. The internal activity store retains OS/origin protections; the password is an app lock and encryption applies to external/portable backups. See SETUP.md.

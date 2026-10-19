@@ -1,0 +1,22 @@
+[
+  {
+    "password": "AnchorOS test password 123",
+    "salt": "AAECAwQFBgcICQoLDA0ODw==",
+    "iv": "EBESExQVFhcYGRob",
+    "key": "LHyhv9bJASNcH97u3/raxXqP1GK6HWBrFWS9684/E9I=",
+    "plaintext": "{\"activity\":\"Networks · شبكات\",\"amount\":25}",
+    "aad": "AnchorOS authenticated test header",
+    "ciphertext": "0Tv8X/NUeYBfyA1efuaV6levmqlssJhQ/ni6EmsFqZri7aFvsXhBGhgHmaRQhqoXiB0jZfGlOeyeALahNxHcWVU=",
+    "hash": "c85f29c75bf9516b2c2ca3fa92c891bde4cecede176f835e0c76877ab6175d0d"
+  },
+  {
+    "password": "Ashraf-كلمة سر-12345",
+    "salt": "AAECAwQFBgcICQoLDA0ODw==",
+    "iv": "EBESExQVFhcYGRob",
+    "key": "Rwe9GLugjFk1xl2QlLyO58tL+3eL6ZWEA4n+cCEJzco=",
+    "plaintext": "{\"activity\":\"Networks · شبكات\",\"amount\":25}",
+    "aad": "AnchorOS authenticated test header",
+    "ciphertext": "dnWLz9LdRRURhNuPVzk99Fpt1TqxuxwxKZw8CMZTPdDWZIbb27as2Hu1OL/FZ2FoJ+unvn5M+1uUDwnAC9X6LO8=",
+    "hash": "c85f29c75bf9516b2c2ca3fa92c891bde4cecede176f835e0c76877ab6175d0d"
+  }
+]

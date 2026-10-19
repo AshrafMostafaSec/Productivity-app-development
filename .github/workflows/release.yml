@@ -2,7 +2,7 @@ name: Validate and publish beta release
 
 on:
   push:
-    branches: [codex/release-validation]
+    branches: [codex/local-files-backup]
   workflow_dispatch:
 
 permissions:
@@ -19,7 +19,7 @@ jobs:
     uses: ./.github/workflows/ios-build.yml
   publish:
     needs: [web, ios]
-    if: github.ref == 'refs/heads/codex/release-validation'
+    if: github.ref == 'refs/heads/codex/local-files-backup'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -55,7 +55,7 @@ jobs:
           TAG="v${VERSION}-beta.${GITHUB_RUN_NUMBER}"
           gh release create "$TAG" \
             release/AnchorOS-unsigned.ipa release/AnchorOS-web.zip \
-            release/SHA256SUMS.txt release/build-manifest.json release/VERIFICATION.md \
+            release/SHA256SUMS.txt release/build-manifest.json release/VERIFICATION.md release/native-crypto-check.txt \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "AnchorOS ${VERSION} beta ${GITHUB_RUN_NUMBER}" \
             --prerelease --latest=false --notes-file release/VERIFICATION.md

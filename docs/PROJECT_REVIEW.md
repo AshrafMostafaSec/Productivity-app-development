@@ -1,54 +1,21 @@
-# Project review
+# Current implementation review — 0.3.0
 
-Reviewed on 2026-10-19 from `Productivity app development.zip` and the initially empty GitHub repository.
+The earlier remote-account plan is superseded by the owner's requested local name/password profile and Files backups. Original code/review history remains in git.
 
-## Implementation update — 0.2.0
+## Implemented boundaries
 
-The new implementation resolves the original storage/backup findings with a Zod-validated vault, atomic iOS/IndexedDB persistence, account-scoped queues and rollback, native Google SDK/Drive code, recovery confirmation, portable backups, and native reminders. Fonts are bundled; sample assignment and medication-specific defaults were removed. Actions and gated beta releases are now authorized; see `RELEASE.md`. See `PROGRESS.md` and the implementation PR for validation and native-device limits.
+- The access gate runs before domain activities are loaded or rendered. A password-derived authenticated proof verifies the password. Manual lock cancels controller work before clearing the in-memory key.
+- Activities save atomically with revision/backup metadata. Existing active activities and rollback survive migration to the local profile. Invalid saves are preserved for recovery.
+- Exported and automatic file backups are AES-GCM encrypted with authenticated profile/revision metadata, a random nonce per copy, and bounded PBKDF2 parameters. A fresh installation can restore a file and password only after preview/confirmation.
+- The native picker rejects the app's container, uses security-scoped bookmarks and coordinated I/O, checks selection tokens, and restricts generated backup filenames. Permission failures remain visible. Read-back verification and a durable acknowledgment precede retention.
+- Remote account code, native SDK, callbacks, build inputs, and network API integration were removed.
 
-The table below records findings from the original supplied prototype, not a claim that its old storage implementation is still active.
+## Verification and practical limits
 
-## Original product and implementation
+The local suite includes real browser cryptography tests and controller/provider boundary tests. Production UI tests cover creation, unlock, wrong password, lock, activities, and fresh-context restore. The release workflow records actual totals and adds native CryptoKit/CommonCrypto interoperability checks plus Xcode compilation.
 
-AnchorOS organizes a person's day around five prayers. It uses four main tabs and short sections rather than long pages.
+A local password is an app lock, not an online identity or added encryption of internal activity files. Internal storage uses iOS file protection or browser origin controls. The exported backup's original password cannot be reset by a service.
 
-| Area | Existing behavior | Main files |
-|---|---|---|
-| Today | Routine steps, quick tasks, inbox, daily rings | `src/screens/today/` |
-| Deen | Prayer logs, adhkar, Quran progress, tasbih, night habits | `src/screens/deen/`, `src/data/adhkar.ts` |
-| Focus | Absolute-time Pomodoro, assignments broken into steps, simulated app passes | `src/screens/focus/`, `src/hooks/useScheduler.ts` |
-| Wallet | Expenses, daily budget, cooling-off purchases, trends | `src/screens/wallet/` |
-| Settings and insights | Manual prayer times, notification toggles, alarms, progress, destructive reset | `src/screens/more/` |
-| State | Central pure reducer, reward ledger, daily rollover, versioned local persistence | `src/state/`, `src/types.ts` |
-| Presentation | Shared controls, sheets, design tokens, animation presets | `src/ui/`, `src/shell/`, `src/index.css` |
+Deleting the app deletes its activities and folder bookmark. A completed separate file outside the container must exist first; the user selects it after reinstalling and then selects the folder again for future copies. Removing the provider or losing/deleting its files removes those copies. iOS cannot promise hourly work while closed.
 
-Data flows from screens through `dispatch`, then the reducer, then the persistence effect. Toasts are excluded from storage. Version 1 saves are migrated into the version 2 shape. Reward keys reduce duplicate rewards. These boundaries are worth retaining.
-
-## Findings that affect delivery
-
-| Priority | Finding | Required response |
-|---|---|---|
-| P0 | `storage.ts` stores the only copy in localStorage; write failures are swallowed | Introduce durable persistence, explicit errors, a durable backup queue, and tested restore before real use |
-| P0 | Parsed saves are type-cast and shallowly merged; nested corrupt/missing fields are not validated | Validate full data shapes and versions; preserve invalid originals; migrate in a staging transaction |
-| P0 | A new install starts with sample data immediately | Put account recovery before cloud writes so sample data cannot replace a real backup |
-| P1 | No account system, Drive API integration, backup history, or import/export | Implement the backup milestone and recovery tests in the target plan |
-| P1 | Shield only changes state and shows a sheet | Implement native Screen Time integrations separately, with entitlement and signing checks |
-| P1 | Scheduler depends on JavaScript intervals and Web Notifications | Schedule native local notifications; do not promise execution after suspension/termination |
-| P1 | `LiveActivity.tsx` is a floating React component | Add an ActivityKit extension only if a real lock-screen/Dynamic Island feature is required |
-| P1 | Alarm audio/math overlay depends on an active web runtime | Evaluate native notification/AlarmKit capabilities separately; do not promise forced math dismissal while closed |
-| P2 | Seed currency is `$`, prayer times are fixed examples, and an assignment is demonstration content | Ask for locale/currency, manual or calculated prayer times, and explicit demo-data import during onboarding |
-| P2 | Fonts are fetched from Google Fonts | Bundle reviewed font assets for a fully offline experience |
-| P2 | Some notification copy implies stronger background support than implemented | Correct copy when adding the native notification adapter; expose actual delivery status |
-
-## Foundation changes
-
-The source remains a React app. Figma runtime configuration is removed from Vite and the HTML shell now declares its own language, title, viewport safe-area support, and robots metadata. Capacitor provides an iOS host without rewriting the product UI. CI checks the web build and separately compiles an unsigned device app on macOS.
-
-The later implementation adds storage migration, Google integration source, and recovery controls. Xcode compilation has passed on GitHub Actions. Signed-device behavior still needs separate verification; web tests cannot certify it.
-
-## Platform references
-
-- [Capacitor iOS requirements](https://capacitorjs.com/docs/ios)
-- [Apple background task scheduling](https://developer.apple.com/documentation/backgroundtasks/bgtaskrequest/earliestbegindate)
-- [Apple Family Controls entitlement](https://developer.apple.com/documentation/familycontrols/requesting-the-family-controls-entitlement)
-- [Google Drive app-specific storage](https://developers.google.com/workspace/drive/api/guides/appdata)
+Physical-device permission persistence, provider behavior, actual uninstall/reinstall, native notifications, and background delivery need the signed-device checklist. Screen Time enforcement and real ActivityKit remain optional future work.

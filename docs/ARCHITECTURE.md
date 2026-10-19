@@ -3,7 +3,7 @@
 This document is the contract for anyone (human or AI) implementing features in AnchorOS.
 Follow it exactly. If the code and this doc disagree, fix one of them in the same change so they match again.
 
-The standalone app uses Capacitor, validated durable device storage, and a Google Drive snapshot controller. `IOS_AND_BACKUP_PLAN.md` describes the implementation and its verification limits. The user has authorized Actions validation and release publication. `RELEASE.md` describes the gated beta workflow; automatic main/PR triggers remain disabled.
+The standalone app uses Capacitor, validated durable device storage, and a local password gate and encrypted Files snapshot controller. `IOS_AND_BACKUP_PLAN.md` describes the implementation and its verification limits. The user has authorized Actions validation and release publication. `RELEASE.md` describes the gated beta workflow; automatic main/PR triggers remain disabled.
 
 ---
 
@@ -30,9 +30,9 @@ AnchorOS is built for an ADHD brain. Every design decision serves these rules:
 | Change | `controller.dispatch(Action)` | Stamped action enters the pure reducer |
 | Validate | `storage/schema.ts` | Complete v2 state must validate before a commit |
 | Save | `Repository` → native atomic file or IndexedDB | State/revision/pending-backup metadata committed together |
-| Back up | Controller → account-checked Drive adapter | Recover/confirm first, immutable upload, read-back, then acknowledgment |
+| Back up | Controller → password-encrypted Files destination | Recover/confirm first, immutable upload, read-back, then acknowledgment |
 
-Account and import/restore screens call controller operations, which restore through `system/restore` reducer actions. Native and HTTP work never runs inside the reducer. Toasts remain transient. Per-account rollback state lives outside AppState in the device vault.
+Profile and import/restore screens call controller operations, which restore through `system/restore` reducer actions. Native file and cryptographic work never runs inside the reducer. Toasts remain transient. Per-profile rollback state lives outside AppState in the device vault.
 
 **Layer rules (imports may only point downward):**
 
@@ -42,7 +42,7 @@ Account and import/restore screens call controller operations, which restore thr
 | `hooks/` | `state/`, `lib/` | render UI |
 | `ui/` | `ui/`, `lib/notify` (haptics), `state/store` (Toast only) | know about domain rules |
 | `state/reducer.ts` | `types`, `lib/time`, `data/`, pure selectors | import React components, storage, HTTP, or native APIs |
-| `state/controller.ts` | reducer, schemas, injected repository/auth/Drive services | render UI or persist credentials |
+| `state/controller.ts` | reducer, schemas, injected repository/local identity/Files services | render UI or persist credentials |
 | `lib/`, `data/` | `types` | import from `state/` or `ui/` |
 
 ---
@@ -105,9 +105,11 @@ The timer is driven by the absolute `endsAt`, never by counting ticks, so it sur
 - AppState remains version 2; the device vault has its own format version 1.
 - The iOS backend writes one protected JSON file atomically on a serial queue; the browser uses an IndexedDB transaction and a Web Lock for one active writer.
 - `storage/schema.ts` validates every field and rejects unsupported versions/unsafe keys. It explicitly migrates old v1 state; unknown malformed saves are preserved, not reset.
-- Account data, dirty revision, verified head/hash/time, preferences, and account-scoped rollback are committed together. The repository serializes writes; failures stay visible and block cloud uploads.
+- Local profile activities, dirty revision, verified head/hash/time, preferences, and account-scoped rollback are committed together. The repository serializes writes; failures stay visible and block external file writes.
 - Legacy `anchoros:v1` localStorage is read once when no vault exists and retained as a recovery copy.
 - Rollover runs on startup, each minute, and on activation; a changed day is persisted and marked dirty. Restore clears transient notifications/unlocks and pauses a running timer before applying rollover.
+- A local password gate must unlock before the domain controller loads. Password-derived encryption keys stay in memory, are cleared on lock, and protect exported/automatic backups with authenticated headers. Internal activities retain native file protection/browser origin storage; the password is an app lock, not a server identity or additional encryption of internal activity files.
+- The Files picker uses a persisted minimal security-scoped bookmark and coordinated access; the selected folder must be outside this app. Selection tokens prevent writes/deletes from following a stale folder selection. Reinstallation loses the bookmark: restore a selected encrypted file with the original password, then select the folder again.
 - See the backup guide for recovery choices, identity boundaries, retry/retention, and acknowledgment rules.
 
 ---
@@ -269,4 +271,4 @@ Patterns:
 
 ## 9. Future optional extensions
 
-Google backup, native reminders, portable export/import, and code splitting are implemented in source. Remaining optional work includes location-consented prayer calculation, recurring lecture timetables, true Screen Time shielding, and an ActivityKit extension. Keep unavailable system behavior explicit in the UI and complete signed-device checks before making capability claims.
+Local name/password access, encrypted external Files backups, native reminders, portable restore, and code splitting are implemented in source. Remaining optional work includes location-consented prayer calculation, recurring lecture timetables, true Screen Time shielding, and an ActivityKit extension. Keep unavailable system behavior explicit in the UI and complete signed-device checks before making capability claims.
