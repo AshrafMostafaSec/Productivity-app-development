@@ -1,3 +1,4 @@
+import { newId } from '../lib/id';
 import type { Backend } from './backend';
 import { parseState, parseJson, parseVault, newDataset, type Vault } from './schema';
 
@@ -15,7 +16,7 @@ export class Repository {
     let state;
     try { state = legacy != null ? parseState(parseJson(legacy)) : undefined; }
     catch (error) { if (legacy != null) await this.backend.preserveOriginal?.(legacy); throw error; }
-    const vault: Vault = { format: 1, installationId: crypto.randomUUID(), activeScope: 'guest', datasets: { guest: newDataset(state) }, accounts: {} };
+    const vault: Vault = { format: 1, installationId: newId(), activeScope: 'guest', datasets: { guest: newDataset(state) }, accounts: {} };
     if (legacy != null) { vault.datasets.guest.hasEdits = true; vault.datasets.guest.dirty = true; }
     await this.save(vault);
     // Leave the original legacy payload intact as a migration recovery copy.

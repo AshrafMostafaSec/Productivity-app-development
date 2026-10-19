@@ -1,3 +1,4 @@
+import { newId } from '../lib/id';
 import type { Snapshot } from '../backup/snapshot';
 import type { LocalAccess } from './localAccess';
 import { Native, isIOS } from '../platform/native';
@@ -39,7 +40,7 @@ export class FilesBackup implements FilesDestination {
     const token = await this.token(subject, signal);
     if (snapshot.accountSubject !== subject) throw new Error('The backup profile does not match.');
     const value = await this.encode(snapshot); cancelled(signal);
-    const id = `anchoros-${snapshot.createdAt}-${crypto.randomUUID()}.anchorbackup`;
+    const id = `anchoros-${snapshot.createdAt}-${newId()}.anchorbackup`;
     await Native.writeBackup({ token, id, value }); cancelled(signal);
     return { id, name: id, createdTime: new Date(snapshot.createdAt).toISOString(), size: String(new TextEncoder().encode(value).byteLength), appProperties: { app: 'anchoros', format: '1', installation: snapshot.installationId, revision: String(snapshot.revision), hash: snapshot.payloadSha256, profile: subject } };
   }

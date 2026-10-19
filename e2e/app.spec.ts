@@ -140,13 +140,16 @@ test('locks the profile and rejects an incorrect password without losing activit
   await page.getByRole('tab', { name: /^Inbox/ }).click(); await expect(page.getByText('Private activity', { exact: true })).toBeVisible();
 });
 
-test('restores the same name, password, and activities in a completely fresh installation', async ({ page, browser }) => {
+test('restores name, password, and activities in a fresh installation without randomUUID', async ({ page, browser }) => {
+  await page.addInitScript(() => { Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true }); });
   await openApp(page); await page.getByRole('tab', { name: /^Inbox/ }).click();
+  expect(await page.evaluate(() => typeof crypto.randomUUID)).toBe('undefined');
   await page.getByLabel('New thought', { exact: true }).fill('Keep this after reinstalling'); await page.getByRole('button', { name: 'Park it', exact: true }).click();
   await openBackups(page); const waiting = page.waitForEvent('download'); await page.getByText('Export encrypted backup', { exact: true }).click();
   const file = await waiting; const path = await file.path(); expect(path).toBeTruthy();
   const fresh = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
+    await fresh.addInitScript(() => { Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true }); });
     const second = await fresh.newPage(); await second.goto('http://127.0.0.1:4173/');
     await second.getByLabel('Encrypted backup file', { exact: true }).setInputFiles(path!);
     await second.getByLabel('Backup password', { exact: true }).fill(PASSWORD);
