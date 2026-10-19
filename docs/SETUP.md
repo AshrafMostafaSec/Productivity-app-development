@@ -1,52 +1,48 @@
-# Configure and build AnchorOS
+# Build and use AnchorOS 0.3.0
 
-## Local development
+## Development
 
-Install Node 24 and pnpm 11.25.0, then run `pnpm install --frozen-lockfile`. `pnpm check` validates application/test types, runs the core tests, and builds the app. Install the Playwright browsers with `pnpm exec playwright install chromium webkit`, then run `pnpm test:e2e`.
+Use Node 24 and pnpm 11.25.0. Install with `pnpm install --frozen-lockfile`. Run `pnpm check`, `pnpm ios:sync`, and `pnpm ios:verify`. Install browsers with `pnpm exec playwright install chromium webkit`, then run `pnpm test:e2e` against the built production bundle. `ANCHOROS_CHROMIUM_PATH` may identify an existing local Chromium; use `--project=chromium` if WebKit is not installed in that environment.
 
-`ANCHOROS_CHROMIUM_PATH` can point at a compatible existing Chromium executable for a constrained development environment. The test suite does not depend on that option in normal installations.
+On macOS, `swiftc ios/App/App/AnchorCrypto.swift scripts/crypto-check/main.swift -o build/crypto-check` followed by `build/crypto-check scripts/crypto-check/vectors.json` verifies native/browser backup interoperability. The iOS Actions job runs this check and Xcode Release compilation automatically.
 
-No Google account or Apple signing material is needed for local-only use. Browser sessions support export/import and durable device storage; Google authorization is implemented in the iPhone host.
+## Local name and password
 
-## Google Cloud
+On first launch, choose your name, a password of at least eight characters, and its confirmation. Existing device activities are retained. Later cold launches require this password. Settings → Profile & Backups → Lock app closes the local profile without deleting activities.
 
-1. Use the permanent Google Cloud project for this app and enable **Google Drive API**.
-2. Configure the OAuth consent application. Add the intended Google account as a test user if the consent app is in testing. Check Google's current testing/token rules before relying on unattended backups.
-3. Register an **iOS OAuth client** for `com.ashrafmostafa.anchoros`. If you change the bundle identifier, update both the Capacitor configuration and Xcode project before registering the matching client.
-4. Save the public client ID as the GitHub repository variable **GOOGLE_IOS_CLIENT_ID**, or enter it in the iOS workflow's manual input. No client secret or service account is needed.
-5. For a local Mac build, set `GOOGLE_IOS_CLIENT_ID` when running `pnpm ios:sync`. `scripts/configure-ios.py` writes `GIDClientID` and the reversed callback URL scheme to Info.plist. It refuses malformed IDs. A build without an ID keeps Google sign-in disabled and local backups available.
-6. Build and sign the app. In **Settings → Account & Backup**, choose **Sign in with Google**, then allow application-specific Drive storage. On a new account connection, choose a cloud copy to restore or explicitly choose which device data to keep.
-7. Wait for a completed backup time before uninstalling. Perform the reinstall test below.
+The password is an app lock and encrypts exported/automatic backups. Internal activity files retain iOS file protection/browser origin storage. No remote account, client ID, API key, password transmission, or online reset service is involved. Keep the original password: an encrypted backup cannot be recovered without it.
 
-OAuth client IDs are public app configuration. Google passwords, access/refresh tokens, client secrets, and service-account keys must not be put in source control. The Google SDK handles refresh credentials natively; the JavaScript bridge only requests a short-lived access token when calling Drive.
+## Automatic file copies on iPhone
 
-## Apple installation
+1. Open Settings → Profile & Backups → Choose folder.
+2. In Files, select/create a folder outside AnchorOS, for example a durable Downloads or other Files location available on your device. A folder belonging to AnchorOS is rejected because deleting the app deletes its container. Pick a provider/location whose files you intend to keep independently of this app.
+3. An empty folder starts automatic backup and verifies the first copy. When the folder already contains copies for this profile, review one or confirm Keep current device activities. A folder containing another profile is not used to replace it.
+4. Check the selected folder name and a successful File backup verified timestamp. Pending/paused/error states mean newer activities may still be only on the device.
+5. File copies run after edits, on activation/reconnection, and best effort on backgrounding. iOS does not guarantee hourly backups while the app is closed.
 
-The Xcode project targets iOS 16+, uses GoogleSignIn 9.0.0 through Swift Package Manager, and includes the required local native plugin, callback handlers, shared build scheme, and file-access privacy reason. Capacitor sync updates its own generated plugin package references.
+The app writes encrypted `.anchorbackup` files, verifies them by read-back/decryption/hash, and preserves a bounded history. Copy files to another safe location yourself if protection against device loss is needed.
 
-Choose your supported installation route: local Xcode signing/re-signing for personal use, or an Apple Developer Program route such as TestFlight. An unsigned IPA cannot be installed directly. Keep the bundle ID and the Google project/client identity stable. A re-signing tool that changes the bundle ID may break Google authorization; reconfiguration is required if the app identity changes.
+## Reinstall and restore
 
-No Apple ID password is required by the unsigned workflow. If signed CI distribution is added later, keep the certificate/profile and their passwords in protected GitHub Actions secrets, outside pull-request jobs. Screen Time/ActivityKit extensions and a forced closed-app alarm are outside this release's capabilities.
+Before deleting the app, verify a completed external copy or export an encrypted file and save it outside AnchorOS.
 
-## Run GitHub Actions when ready
+After reinstalling, on the welcome screen choose Restore from a backup, select the saved file, enter its original password, choose Review backup, then Confirm restore. This restores its name, activities, and password access. No data changes before confirmation. Running timers restore paused. A rollback of valid previous activities and original damaged bytes are preserved where available.
 
-The user has authorized Actions and beta release publication. See `RELEASE.md` for isolated branch triggers and release gates. For individual manual checks:
+Select the external folder again to enable automatic copies. Reinstalling deletes the saved folder bookmark; AnchorOS cannot silently reacquire access or discover arbitrary device files. Deleting the backup itself or its owning provider's data removes that recovery copy.
 
-1. Open **Actions → Web CI → Run workflow** for types, core tests, browser tests, and web assets.
-2. Open **Actions → iOS unsigned build → Run workflow** to sync the configured app, validate native references, compile on macOS, and package the unsigned IPA.
-3. Download **AnchorOS-unsigned-iphone** after the job succeeds, then sign/provision using your chosen installation route.
+## iPhone installation and device checks
 
-The first completed validation runs passed Web CI and Xcode Release compilation. Every release identifies its exact source and current run results; inspect those results for that version.
+The unsigned IPA requires Apple signing/provisioning before installation. Keep the bundle identifier `com.ashrafmostafa.anchoros` stable where your signing route permits. Native folder access uses standard document picker APIs and needs no special signing entitlement for a selected folder.
 
-## Required signed-device checks
+Test the signed build on your iPhone before trusting automatic recovery:
 
-Test on the target iPhone before trusting cloud recovery:
+- Create a password, task, study session, expense, prayer log, and native reminder. Confirm they survive lock/unlock and a restart.
+- Choose an external Files folder; inspect the encrypted file and verified timestamp. Edit offline, background/reopen, and verify a newer copy.
+- Revoke folder access, move the folder, or disconnect its provider. Confirm an error stays visible and device activities remain intact. Choose the folder again and verify recovery.
+- Export a file, enter a wrong restore password, cancel a restore, and verify no replacement occurs.
+- Only after keeping a verified separate copy: delete the app, reinstall, select that file, enter the original password, confirm restore, verify activities/history, then choose the folder again.
+- Test native notifications on the locked phone. Provider access, background timing, and deletion/reinstall behavior need physical-device evidence.
 
-- Sign in, grant Drive access, create a task/assignment/expense/prayer log, and wait for **Backed up**.
-- Turn off the network, edit, restart the app, reconnect, and verify the pending changes upload.
-- Sign out and into another account. Confirm their data and rollback copies stay separate.
-- Export/import a copy and confirm restore only happens after review.
-- Delete the app, reinstall a signed build with the same bundle/client identity, sign in, and restore the verified cloud copy before enabling uploads.
-- Lock the screen and test prayer, timer, and daily alarm notifications. System notification settings can silence delivery. Reopen at least every few days to refresh rolling prayer/deadline reminders.
+## CI and releases
 
-Only acknowledged cloud snapshots survive loss of the device container. Background flushes are best effort; there is no guaranteed hourly upload while the app is closed.
+Individual web/iOS workflows support manual dispatch and reusable calls. The release workflow is scoped to `codex/local-files-backup`, requires both jobs to pass, verifies package/test evidence, and publishes a beta. See RELEASE.md. Screen Time enforcement and real ActivityKit Live Activities remain outside this release.

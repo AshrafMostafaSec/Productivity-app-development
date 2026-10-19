@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { AppState } from '../types';
 import { MAX_BYTES, parseJson, parseState } from '../storage/schema';
+import { sha256 } from '../platform/crypto';
 
 const envelopeSchema = z.object({
   format: z.literal('anchoros-backup'), formatVersion: z.literal(1), stateSchemaVersion: z.literal(2),
@@ -17,8 +18,7 @@ export function canonical(value: unknown): string {
   return JSON.stringify(value);
 }
 export async function digest(value: unknown): Promise<string> {
-  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical(value)));
-  return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
+  return sha256(canonical(value));
 }
 export function backupPayload(state: AppState): AppState {
   const parsed = parseState(state);
@@ -29,13 +29,13 @@ export function backupPayload(state: AppState): AppState {
 }
 export async function createSnapshot(state: AppState, meta: Pick<Snapshot, 'accountSubject' | 'installationId' | 'revision' | 'parentSnapshotId'>): Promise<Snapshot> {
   const payload = backupPayload(state);
-  return { format: 'anchoros-backup', formatVersion: 1, stateSchemaVersion: 2, ...meta, createdAt: Date.now(), appVersion: '0.2.0', payloadSha256: await digest(payload), payload };
+  return { format: 'anchoros-backup', formatVersion: 1, stateSchemaVersion: 2, ...meta, createdAt: Date.now(), appVersion: '0.3.0', payloadSha256: await digest(payload), payload };
 }
 export async function readSnapshot(raw: string, subject?: string): Promise<Snapshot> {
   const checked = envelopeSchema.safeParse(parseJson(raw));
   if (!checked.success) throw new Error('This backup format is unsupported or incomplete. Choose an AnchorOS backup.');
   const envelope = checked.data;
-  if (subject && envelope.accountSubject !== subject) throw new Error('This backup belongs to a different Google account.');
+  if (subject && envelope.accountSubject !== subject) throw new Error('This backup belongs to a different local profile.');
   // Hash original bytes as canonical JSON before parsing, so unexpected payload fields cannot be dropped silently.
   if (await digest(envelope.payload) !== envelope.payloadSha256) throw new Error('This backup is damaged. Choose an older copy.');
   const payload = parseState(envelope.payload);

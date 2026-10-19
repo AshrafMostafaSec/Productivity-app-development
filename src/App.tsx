@@ -1,7 +1,8 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { TabId } from './types';
-import { StoreProvider, useStore } from './state/store';
+import { StoreProvider, useStore, localAccess, makeController } from './state/store';
+import AccessGate from './screens/AccessGate';
 import { currentPrayer } from './lib/time';
 import useNow from './lib/useNow';
 import useScheduler from './hooks/useScheduler';
@@ -68,12 +69,15 @@ function AnchorOS() {
   );
 }
 
-export default function App() {
+function UnlockedApp() {
+  const controller = useMemo(() => makeController(localAccess), []);
   return (
-    <StoreProvider>
+    <StoreProvider controller={controller} access={localAccess}>
       <PhoneFrame>
         <AnchorOS />
       </PhoneFrame>
     </StoreProvider>
   );
 }
+
+export default function App() { return <AccessGate access={localAccess}><UnlockedApp /></AccessGate>; }

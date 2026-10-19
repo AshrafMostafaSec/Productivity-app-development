@@ -6,15 +6,15 @@ import { Repository } from '../storage/repository';
 import { newDataset, emptyState, parseState, type Account, type Dataset, type Vault } from '../storage/schema';
 import { backupPayload, canonical, createSnapshot, readSnapshot, snapshotText, type Snapshot } from '../backup/snapshot';
 import { retentionCandidates } from '../backup/retention';
-import { DriveError, type CloudFile, type Drive } from '../services/googleDrive';
-import type { Auth } from '../services/googleAuth';
+import { BackupError, type BackupFile, type FilesDestination, type FolderStatus } from '../services/filesBackup';
+import type { Identity } from '../services/localIdentity';
 
-type CloudStage = 'disconnected' | 'checking' | 'choice' | 'ready' | 'uploading' | 'error';
+type FolderStage = 'disconnected' | 'checking' | 'choice' | 'ready' | 'uploading' | 'error';
 export interface AppView {
   state: StoreState; ready: boolean; blocked: boolean; saving: boolean; storageError: string | null;
-  configured: boolean; account: Account | null; working: boolean;
-  cloud: { stage: CloudStage; files: CloudFile[]; error: string | null; enabled: boolean; dirty: boolean; lastBackupAt: number | null };
-  preview: { snapshot: Snapshot; file: CloudFile | null } | null;
+  configured: boolean; account: Account | null; working: boolean; folder: FolderStatus;
+  backup: { stage: FolderStage; files: BackupFile[]; error: string | null; enabled: boolean; dirty: boolean; lastBackupAt: number | null };
+  preview: { snapshot: Snapshot; file: BackupFile | null } | null;
 }
 const message = (error: unknown) => error instanceof Error ? error.message : 'Something went wrong. Your existing data has been kept.';
 const abortError = (error: unknown) => error instanceof DOMException && error.name === 'AbortError';
@@ -33,21 +33,21 @@ export class AppController {
   private retries = 0;
   private view: AppView = {
     state: { ...createInitialState(), toast: null }, ready: false, blocked: false, saving: false, storageError: null,
-    configured: false, account: null, working: false,
-    cloud: { stage: 'disconnected', files: [], error: null, enabled: false, dirty: false, lastBackupAt: null }, preview: null,
+    configured: true, account: null, working: false, folder: { configured: false, name: null, token: null },
+    backup: { stage: 'disconnected', files: [], error: null, enabled: false, dirty: false, lastBackupAt: null }, preview: null,
   };
-  constructor(private repository: Repository, private auth: Auth, private drive: Drive, private autoSchedule = true) {}
+  constructor(private repository: Repository, private auth: Identity, private drive: FilesDestination, private autoSchedule = true) {}
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   getSnapshot = () => this.view;
   private update(patch: Partial<AppView>) { this.view = { ...this.view, ...patch }; this.listeners.forEach(l => l()); }
-  private cloud(patch: Partial<AppView['cloud']>) { this.update({ cloud: { ...this.view.cloud, ...patch } }); }
+  private backup(patch: Partial<AppView['backup']>) { this.update({ backup: { ...this.view.backup, ...patch } }); }
   private dataset(): Dataset {
     if (!this.vault) throw new Error('Device data has not loaded yet.');
     return this.vault.datasets[this.vault.activeScope];
   }
   private syncMeta() {
     const d = this.dataset();
-    this.cloud({ enabled: d.enabled, dirty: d.dirty, lastBackupAt: d.lastBackupAt });
+    this.backup({ enabled: d.enabled, dirty: d.dirty, lastBackupAt: d.lastBackupAt });
   }
   private async persist() {
     if (!this.vault) return;
@@ -75,7 +75,7 @@ export class AppController {
   private cancel() { this.epoch++; this.abort.abort(); this.abort = new AbortController(); this.clearTimers(); this.retries = 0; }
   private current(epoch: number, subject?: string) { return epoch === this.epoch && (!subject || this.view.account?.subject === subject); }
   private schedule() {
-    if (!this.autoSchedule || !this.vault || !this.view.account || !this.dataset().enabled || !this.dataset().dirty || this.view.storageError || this.view.cloud.stage !== 'ready') return;
+    if (!this.autoSchedule || !this.vault || !this.view.account || !this.dataset().enabled || !this.dataset().dirty || this.view.storageError || this.view.backup.stage !== 'ready') return;
     clearTimeout(this.timer);
     this.timer = setTimeout(() => void this.backupNow(), 15_000);
     this.maxTimer ??= setTimeout(() => void this.backupNow(), 60_000);
@@ -103,9 +103,9 @@ export class AppController {
       this.update({ configured: result.configured });
       if (result.account) {
         await this.attachAccount(result.account);
-        await this.checkCloud();
+        await this.checkFolder();
       }
-    } catch (error) { this.cloud({ stage: 'error', error: message(error) }); }
+    } catch (error) { this.backup({ stage: 'error', error: message(error) }); }
   }
   dispatch = (action: Action) => {
     if (!this.vault || this.view.blocked || this.view.working) return;
@@ -115,7 +115,7 @@ export class AppController {
       const reset = reducer(this.view.state, { ...action, meta: { now: Date.now(), id: crypto.randomUUID() } });
       Object.assign(this.dataset(), newDataset(this.withoutToast(reset)), { rollback });
       this.update({ state: reset }); this.syncMeta();
-      this.cloud({ stage: this.view.account ? 'choice' : 'disconnected', error: null });
+      this.backup({ stage: this.view.account ? 'choice' : 'disconnected', error: null });
       void this.persist().catch(() => {});
       return;
     }
@@ -137,46 +137,41 @@ export class AppController {
   private async attachAccount(account: Account) {
     if (!this.vault) return;
     this.cancel();
-    const scope = `google:${account.subject}`;
+    const scope = `local:${account.subject}`;
     this.vault.accounts[scope] = account;
-    this.vault.datasets[scope] ??= newDataset(emptyState());
+    this.vault.datasets[scope] ??= { ...newDataset(this.dataset().state), rollback: this.dataset().rollback };
     this.vault.activeScope = scope;
     this.dataset().recoveryChecked = false;
     this.update({ account }); this.switchDomain(this.dataset().state);
-    this.cloud({ stage: 'checking', files: [], error: null });
+    this.backup({ stage: 'checking', files: [], error: null });
     await this.persist();
   }
-  connect = async () => {
-    if (!this.vault || this.view.blocked || this.view.working) return;
-    this.update({ working: true }); this.cancel();
+  selectFolder = async () => {
+    if (this.view.working) return;
+    this.cancel(); this.update({ working: true });
     try {
-      await this.repository.flush();
-      const account = await this.auth.signIn();
-      await this.auth.authorizeDrive();
-      await this.attachAccount(account);
-      await this.checkCloud();
-    } catch (error) { this.cloud({ stage: 'error', error: message(error) }); }
+      const previous = this.view.folder.token;
+      const folder = await this.drive.select(); this.update({ folder });
+      const dataset = this.dataset(); dataset.recoveryChecked = false;
+      if (previous !== folder.token) { dataset.headId = null; dataset.lastHash = null; dataset.lastBackupAt = null; dataset.enabled = false; dataset.dirty = true; }
+      this.syncMeta(); await this.persist();
+      await this.checkFolder();
+      if (this.view.backup.stage === 'choice' && this.view.backup.files.length === 0) {
+        await this.chooseLocal(false); await this.backupNow();
+      }
+    } catch (error) { await this.checkFolder(); throw error; }
     finally { this.update({ working: false }); }
   };
-  signOut = async () => {
-    if (!this.vault || this.view.working) return;
-    this.update({ working: true }); this.cancel();
-    try {
-      await this.repository.flush();
-      await this.auth.signOut();
-      this.vault.activeScope = 'guest';
-      this.update({ account: null }); this.switchDomain(this.dataset().state);
-      this.cloud({ stage: 'disconnected', files: [], error: null });
-      await this.persist();
-    } catch (error) { this.cloud({ stage: 'error', error: message(error) }); }
-    finally { this.update({ working: false }); }
-  };
-  checkCloud = async () => {
+  checkFolder = async () => {
     const account = this.view.account;
     if (!account || !this.vault || this.view.storageError) return;
     const epoch = this.epoch; const signal = this.abort.signal;
-    this.cloud({ stage: 'checking', error: null });
+    this.backup({ stage: 'checking', error: null });
     try {
+      const folder = await this.drive.status();
+      if (!this.current(epoch, account.subject)) return;
+      this.update({ folder });
+      if (!folder.configured) { this.backup({ stage: 'disconnected', files: [], error: null }); return; }
       const files = await this.drive.list(account.subject, signal);
       if (!this.current(epoch, account.subject)) return;
       const d = this.dataset();
@@ -184,34 +179,35 @@ export class AppController {
       const sameHead = latest?.id === d.headId;
       const knownEmpty = files.length === 0 && d.headId === null && d.recoveryChecked;
       const choice = !sameHead && !knownEmpty;
-      // First account connection always asks, even when the cloud is empty.
-      this.cloud({ files, stage: choice ? 'choice' : 'ready', error: null });
+      // First account connection always asks, even when the backup is empty.
+      this.backup({ files, stage: choice ? 'choice' : 'ready', error: null });
       if (!choice) { d.recoveryChecked = true; await this.persist(); this.schedule(); }
     } catch (error) {
-      if (this.current(epoch) && !abortError(error)) this.cloud({ stage: 'error', error: message(error) });
+      if (this.current(epoch) && !abortError(error)) this.backup({ stage: 'error', error: message(error) });
     }
   };
   chooseLocal = async (useGuest: boolean) => {
-    if (!this.vault || !this.view.account || this.view.cloud.stage !== 'choice') return;
-    // Explicit confirmation in AccountSheet authorizes keeping this dataset over cloud history.
+    if (!this.vault || !this.view.account || this.view.backup.stage !== 'choice') return;
+    // Explicit confirmation in Profile & Backups authorizes keeping this dataset over backup history.
     const d = this.dataset();
     d.rollback = d.state;
     if (useGuest) this.switchDomain(this.vault.datasets.guest.state);
-    d.headId = this.view.cloud.files[0]?.id ?? null;
+    d.headId = this.view.backup.files[0]?.id ?? null;
     d.lastHash = null; d.recoveryChecked = true; d.enabled = true; d.dirty = true; d.hasEdits = true; d.revision++; d.updatedAt = Date.now();
-    this.syncMeta(); this.cloud({ stage: 'ready', error: null });
+    this.syncMeta(); this.backup({ stage: 'ready', error: null });
     await this.persist(); this.schedule();
   };
   setAutoBackup = async (enabled: boolean) => {
     if (!this.vault || !this.view.account) return;
+    if (enabled && !this.view.folder.configured) throw new Error('Choose a backup folder first.');
     this.dataset().enabled = enabled;
-    if (!enabled) { this.cancel(); this.cloud({ stage: 'ready' }); }
+    if (!enabled) { this.cancel(); this.backup({ stage: 'ready' }); }
     this.syncMeta(); await this.persist();
-    if (enabled) await this.checkCloud();
+    if (enabled) await this.checkFolder();
   };
-  previewCloud = async (id: string) => {
+  previewBackup = async (id: string) => {
     const account = this.view.account;
-    const file = this.view.cloud.files.find(f => f.id === id);
+    const file = this.view.backup.files.find(f => f.id === id);
     if (!account || !file) return;
     const epoch = this.epoch;
     this.update({ working: true });
@@ -221,8 +217,10 @@ export class AppController {
     } finally { if (this.current(epoch)) this.update({ working: false }); }
   };
   previewImport = async (raw: string) => {
-    const snapshot = await readSnapshot(raw);
-    if (snapshot.accountSubject && this.view.account && snapshot.accountSubject !== this.view.account.subject) throw new Error('Sign out first to import a backup from another account.');
+    if (new TextEncoder().encode(raw).byteLength > 16 * 1024 * 1024) throw new Error('Choose a backup smaller than 16 MB.');
+    let encrypted = false;
+    try { encrypted = JSON.parse(raw)?.header?.format === 'anchoros-encrypted'; } catch { /* The snapshot parser returns the readable invalid-JSON error. */ }
+    const snapshot = encrypted ? await this.drive.decode(raw) : await readSnapshot(raw);
     this.update({ preview: { snapshot, file: null } });
   };
   dismissPreview = () => this.update({ preview: null });
@@ -246,13 +244,15 @@ export class AppController {
     d.lastHash = preview.file ? preview.snapshot.payloadSha256 : null;
     d.lastBackupAt = preview.file ? Date.parse(preview.file.createdTime) : d.lastBackupAt;
     d.recoveryChecked = false; d.enabled = false;
-    this.syncMeta(); this.cloud({ stage: this.view.account ? 'checking' : 'disconnected', error: null });
+    this.syncMeta(); this.backup({ stage: this.view.account ? 'checking' : 'disconnected', error: null });
     await this.persist();
     if (recoveringDevice) {
-      try { this.update({ configured: (await this.auth.status()).configured }); } catch { /* Local recovery remains available without Google. */ }
+      const identity = await this.auth.status();
+      this.update({ configured: identity.configured });
+      if (identity.account) await this.attachAccount(identity.account);
     }
-    // Cloud writes remain paused after restore until explicitly enabled and checked against the latest copy.
-    if (this.view.account) await this.checkCloud();
+    // Folder writes remain paused after restore until explicitly enabled and checked against the latest copy.
+    if (this.view.account) await this.checkFolder();
   };
   restoreRollback = async () => {
     if (!this.vault || !this.dataset().rollback || this.view.working) throw new Error('There is no previous dataset to restore.');
@@ -261,58 +261,58 @@ export class AppController {
     this.switchDomain(previous);
     this.dataset().revision++; this.dataset().hasEdits = true; this.dataset().dirty = true; this.dataset().updatedAt = Date.now();
     this.dataset().enabled = false; this.dataset().recoveryChecked = false;
-    this.syncMeta(); this.cloud({ stage: this.view.account ? 'choice' : 'disconnected', error: null });
+    this.syncMeta(); this.backup({ stage: this.view.account ? 'choice' : 'disconnected', error: null });
     await this.persist();
   };
   exportData = async () => {
     if (!this.vault || this.view.blocked) throw new Error('Export the original device file to preserve unreadable data.');
     const snapshot = await createSnapshot(this.withoutToast(this.view.state), { accountSubject: this.view.account?.subject ?? null, installationId: this.vault.installationId, revision: this.dataset().revision, parentSnapshotId: this.dataset().headId });
-    return snapshotText(snapshot);
+    return this.drive.encode(snapshot);
   };
   exportOriginal = () => this.repository.original();
   backupNow = async (force = false) => {
-    if (this.inFlight || !this.vault || !this.view.account || this.view.storageError || (!this.dataset().enabled && !force) || !this.dataset().recoveryChecked || this.view.cloud.stage === 'choice' || this.view.cloud.stage === 'checking') return;
+    if (this.inFlight || !this.vault || !this.view.account || this.view.storageError || (!this.dataset().enabled && !force) || !this.dataset().recoveryChecked || this.view.backup.stage === 'choice' || this.view.backup.stage === 'checking' || this.view.backup.stage === 'disconnected') return;
     const epoch = this.epoch; const account = this.view.account; const signal = this.abort.signal;
     this.inFlight = true; this.clearTimers();
-    this.cloud({ stage: 'uploading', error: null });
+    this.backup({ stage: 'uploading', error: null });
     try {
       await this.repository.flush();
       const files = await this.drive.list(account.subject, signal);
       if (!this.current(epoch, account.subject)) return;
       const d = this.dataset();
       const recoverable = files[0]?.appProperties?.installation === this.vault.installationId && files[0]?.appProperties?.revision === String(d.revision);
-      if ((files[0]?.id ?? null) !== d.headId && !recoverable) { this.cloud({ stage: 'choice', files, error: 'Another backup is available. Choose which data to keep.' }); return; }
-      if (!d.dirty) { this.cloud({ stage: 'ready', files }); return; }
+      if ((files[0]?.id ?? null) !== d.headId && !recoverable) { this.backup({ stage: 'choice', files, error: 'Another backup is available. Choose which data to keep.' }); return; }
+      if (!d.dirty) { this.backup({ stage: 'ready', files }); return; }
       const revision = d.revision;
       const snapshot = await createSnapshot(d.state, { accountSubject: account.subject, installationId: this.vault.installationId, revision, parentSnapshotId: d.headId });
       if (!this.current(epoch, account.subject)) return;
       if (snapshot.payloadSha256 === d.lastHash) {
-        d.dirty = d.revision !== revision; this.syncMeta(); await this.persist(); this.cloud({ stage: 'ready', files }); return;
+        d.dirty = d.revision !== revision; this.syncMeta(); await this.persist(); this.backup({ stage: 'ready', files }); return;
       }
       // Detect a timed-out upload that succeeded before local acknowledgment.
       const duplicate = files.find(f => f.appProperties?.hash === snapshot.payloadSha256 && f.appProperties?.installation === snapshot.installationId && f.appProperties?.revision === String(revision));
-      if (recoverable && !duplicate) { this.cloud({ stage: 'choice', files, error: 'Cloud data differs from your device. Review it before continuing.' }); return; }
+      if (recoverable && !duplicate) { this.backup({ stage: 'choice', files, error: 'Folder data differs from your device. Review it before continuing.' }); return; }
       const uploaded = duplicate ?? await this.drive.upload(account.subject, snapshot, signal);
       const verified = await this.drive.download(account.subject, uploaded, signal);
       if (!this.current(epoch, account.subject)) return;
-      if (verified.payloadSha256 !== snapshot.payloadSha256 || verified.accountSubject !== account.subject) throw new Error('Google returned an unexpected backup. The previous copy is still safe.');
+      if (verified.payloadSha256 !== snapshot.payloadSha256 || verified.accountSubject !== account.subject) throw new Error('The backup read-back did not match. The previous copy is still safe.');
       const latest = this.dataset();
       latest.headId = uploaded.id; latest.lastHash = verified.payloadSha256; latest.lastBackupAt = Date.now(); latest.dirty = latest.revision !== revision;
       await this.persist(); this.syncMeta(); this.retries = 0;
-      this.cloud({ stage: 'ready', files: [uploaded, ...files.filter(f => f.id !== uploaded.id)], error: null });
+      this.backup({ stage: 'ready', files: [uploaded, ...files.filter(f => f.id !== uploaded.id)], error: null });
       // Prune only after read-back verification and durable acknowledgment. Never delete an unreadable file.
-      for (const file of retentionCandidates(this.view.cloud.files).slice(0, 100)) {
+      for (const file of retentionCandidates(this.view.backup.files).slice(0, 100)) {
         if (!this.current(epoch, account.subject)) break;
         try { await this.drive.download(account.subject, file, signal); await this.drive.remove(account.subject, file.id, signal);
-          if (this.current(epoch)) this.cloud({ files: this.view.cloud.files.filter(f => f.id !== file.id) }); }
+          if (this.current(epoch)) this.backup({ files: this.view.backup.files.filter(f => f.id !== file.id) }); }
         catch { /* Retention can wait until the next successful backup. */ }
       }
     } catch (error) {
       if (!this.current(epoch) || abortError(error)) return;
-      this.cloud({ stage: 'error', error: message(error) });
-      const retryable = !(error instanceof DriveError) || error.status === 429 || error.status >= 500;
+      this.backup({ stage: 'error', error: message(error) });
+      const retryable = !(error instanceof BackupError) || error.status === 429 || error.status >= 500;
       if (this.autoSchedule && retryable && this.retries < 6) {
-        const delay = Math.max(error instanceof DriveError ? error.retryAfter : 0, Math.min(300_000, 5000 * 2 ** this.retries++) + Math.random() * 1000);
+        const delay = Math.max(error instanceof BackupError ? error.retryAfter : 0, Math.min(300_000, 5000 * 2 ** this.retries++) + Math.random() * 1000);
         this.retryTimer = setTimeout(() => void this.backupNow(), delay);
       }
     } finally {
@@ -323,7 +323,8 @@ export class AppController {
   resume = async () => {
     if (!this.view.ready || this.view.blocked) return;
     this.dispatch({ type: 'system/rollover', dayKey: dayKeyOf() });
-    if (this.view.account && !this.inFlight) { await this.checkCloud(); await this.backupNow(); }
+    if (this.view.account && !this.inFlight) { await this.checkFolder(); await this.backupNow(); }
   };
+  flush = () => this.repository.flush();
   dispose = () => { this.cancel(); this.listeners.clear(); };
 }

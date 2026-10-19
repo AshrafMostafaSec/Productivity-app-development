@@ -1,7 +1,7 @@
 {
   "name": "anchoros",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,11 +11,10 @@
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p tsconfig.test.json",
     "check": "pnpm typecheck && pnpm test && pnpm build",
     "ios:add": "cap add ios",
-    "ios:sync": "pnpm ios:configure && pnpm build && cap sync ios",
+    "ios:sync": "pnpm build && cap sync ios",
     "ios:open": "cap open ios",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "ios:configure": "python3 scripts/configure-ios.py",
     "ios:verify": "python3 scripts/verify-ios.py"
   },
   "dependencies": {

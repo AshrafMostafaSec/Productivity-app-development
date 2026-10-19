@@ -1,5 +1,15 @@
 # Progress and handoff
 
+## 2026-10-20 — local profile and encrypted Files backups
+
+- Replaced remote sign-in with a local name/password access gate, lock/unlock, and a personalized greeting. No password or derived encryption key is persisted.
+- Added encrypted portable/automatic .anchorbackup files, native CryptoKit/CommonCrypto with WebCrypto-compatible parameters, authenticated metadata, and explicit preview/restore in a fresh installation.
+- Added a Files folder picker, external-container validation, security-scoped bookmarks, coordinated operations, stale-selection tokens, read-back verification, and bounded retention. Reinstallation requires selecting the saved file and then reselecting the folder.
+- Removed the previous SDK, callback configuration, OAuth build inputs, and API adapter. Existing activities/rollback are preserved in migration.
+- Local checks passed: application/test types, 58 core tests, 10 Chromium UI scenarios, production build, Capacitor sync, and native source/config checks. The gated release run records final Chromium/WebKit, native crypto, and Xcode results for its exact commit.
+- Signed-iPhone Files permissions/provider behavior and full deletion/reinstall checks remain required. The following records describe earlier milestones.
+
+
 ## 2026-10-19 — release validation
 
 - PR #3 was merged. Web CI and an unsigned Xcode 26.6 Release build succeeded on the merged application source; the IPA was uploaded as an Actions artifact.

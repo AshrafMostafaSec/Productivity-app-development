@@ -1,6 +1,6 @@
-import type { CloudFile } from '../services/googleDrive';
+import type { BackupFile } from '../services/filesBackup';
 /** Keep 20 newest copies plus the newest copy of each UTC day for the last 30 days. */
-export function retentionCandidates(files: CloudFile[], now = Date.now()): CloudFile[] {
+export function retentionCandidates(files: BackupFile[], now = Date.now()): BackupFile[] {
   const sorted = [...files].sort((a, b) => Date.parse(b.createdTime) - Date.parse(a.createdTime));
   const days = new Set<string>();
   return sorted.filter((file, i) => {
