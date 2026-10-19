@@ -7,6 +7,7 @@
 - Added a Files folder picker, external-container validation, security-scoped bookmarks, coordinated operations, stale-selection tokens, read-back verification, and bounded retention. Reinstallation requires selecting the saved file and then reselecting the folder.
 - Removed the previous SDK, callback configuration, OAuth build inputs, and API adapter. Existing activities/rollback are preserved in migration.
 - Local checks passed: application/test types, 58 core tests, 10 Chromium UI scenarios, production build, Capacitor sync, and native source/config checks. The gated release run records final Chromium/WebKit, native crypto, and Xcode results for its exact commit.
+- [Initial feature validation](https://github.com/AshrafMostafaSec/Productivity-app-development/actions/runs/39332637384) passed 58 core tests, 20 Chromium/WebKit scenarios, native/WebCrypto interoperability and the Xcode 26.6 Release build. Follow-up compatibility checks cover profile creation, export, fresh-install restoration and reload with the secure-context-only randomUUID API absent; production identifiers use cryptographic getRandomValues instead.
 - Signed-iPhone Files permissions/provider behavior and full deletion/reinstall checks remain required. The following records describe earlier milestones.
 
 

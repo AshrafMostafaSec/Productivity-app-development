@@ -1,3 +1,4 @@
+import { newId } from '../lib/id';
 import { z } from 'zod';
 import type { Backend } from '../storage/backend';
 import { newDataset, parseVault, type Account, type Vault } from '../storage/schema';
@@ -61,7 +62,7 @@ export class LocalAccess {
   }
   create = async (name: string, password: string) => {
     if (this.view.stage !== 'setup') throw new Error('Unlock your existing profile or restore a backup.');
-    const profile = publicProfile.parse({ subject: crypto.randomUUID(), name: name.trim() });
+    const profile = publicProfile.parse({ subject: newId(), name: name.trim() });
     if (password.length < 8 || password.length > 256) throw new Error('Choose a password between 8 and 256 characters.');
     const salt = randomBase64(16); const key = await deriveKey(password, salt);
     await this.activate({ profile, salt, key });
@@ -116,7 +117,7 @@ export class LocalAccess {
     const raw = await this.backend.read(); let rollback = null;
     if (raw != null) { await this.backend.preserveOriginal?.(raw); try { const old = parseVault(raw); rollback = old.datasets[old.activeScope].state; } catch { /* Preserve unreadable original bytes. */ } }
     const dataset = newDataset(state); dataset.rollback = rollback; dataset.hasEdits = true;
-    const vault: Vault = { format: 1, installationId: crypto.randomUUID(), activeScope: 'guest', datasets: { guest: dataset }, accounts: {} };
+    const vault: Vault = { format: 1, installationId: newId(), activeScope: 'guest', datasets: { guest: dataset }, accounts: {} };
     // Write data first. If profile storage fails, the restored activities remain available for recovery/setup.
     await this.backend.write(JSON.stringify(vault));
     await this.activate(pending.secret);

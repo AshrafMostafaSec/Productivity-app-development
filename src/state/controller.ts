@@ -1,3 +1,4 @@
+import { newId } from '../lib/id';
 import type { AppState } from '../types';
 import { reducer, rollover, type Action, type StoreState } from './reducer';
 import { createInitialState } from './initialState';
@@ -63,7 +64,7 @@ export class AppController {
     }
   }
   private switchDomain(state: AppState) {
-    const result = reducer(this.view.state, { type: 'system/restore', state, meta: { now: Date.now(), id: crypto.randomUUID() } });
+    const result = reducer(this.view.state, { type: 'system/restore', state, meta: { now: Date.now(), id: newId() } });
     const changed = canonical(backupPayload(state)) !== canonical(backupPayload(this.withoutToast(result)));
     this.dataset().state = this.withoutToast(result);
     if (changed) { this.dataset().revision++; this.dataset().dirty = true; this.dataset().updatedAt = Date.now(); }
@@ -112,7 +113,7 @@ export class AppController {
     if (action.type === 'system/reset') {
       this.cancel();
       const rollback = this.dataset().state;
-      const reset = reducer(this.view.state, { ...action, meta: { now: Date.now(), id: crypto.randomUUID() } });
+      const reset = reducer(this.view.state, { ...action, meta: { now: Date.now(), id: newId() } });
       Object.assign(this.dataset(), newDataset(this.withoutToast(reset)), { rollback });
       this.update({ state: reset }); this.syncMeta();
       this.backup({ stage: this.view.account ? 'choice' : 'disconnected', error: null });
@@ -120,10 +121,10 @@ export class AppController {
       return;
     }
     const before = this.view.state;
-    const next = reducer(before, { ...action, meta: { now: Date.now(), id: crypto.randomUUID() } });
+    const next = reducer(before, { ...action, meta: { now: Date.now(), id: newId() } });
     if (next === before) return;
     const data = this.withoutToast(next);
-    try { parseState(data); } catch { this.update({ state: { ...before, toast: { id: crypto.randomUUID(), text: 'Please check those values and try again.' } } }); return; }
+    try { parseState(data); } catch { this.update({ state: { ...before, toast: { id: newId(), text: 'Please check those values and try again.' } } }); return; }
     const changed = canonical(backupPayload(this.withoutToast(before))) !== canonical(backupPayload(data));
     const d = this.dataset();
     d.state = data;
@@ -233,7 +234,7 @@ export class AppController {
     }
     const recoveringDevice = !this.vault || this.view.blocked;
     if (recoveringDevice) {
-      this.vault = { format: 1, installationId: crypto.randomUUID(), activeScope: 'guest', datasets: { guest: newDataset(emptyState()) }, accounts: {} };
+      this.vault = { format: 1, installationId: newId(), activeScope: 'guest', datasets: { guest: newDataset(emptyState()) }, accounts: {} };
       this.update({ blocked: false, storageError: null, account: null, ready: true });
     }
     const d = this.dataset();
