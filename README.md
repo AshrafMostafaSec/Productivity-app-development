@@ -11,9 +11,9 @@ A personal iPhone productivity app for routines, study, prayer, focus, and daily
 - Portable JSON export/import, recovery from damaged saves, and a previous-data rollback copy for each account.
 - Native iPhone reminders, daily wake-up notifications, and reconciliation after returning to the app.
 - Bundled fonts and split screens; no network is needed for local use after installation.
-- Manual GitHub Actions for web checks and an unsigned iPhone IPA.
+- GitHub Actions for web checks, an unsigned iPhone IPA, and gated beta releases.
 
-Google sign-in needs the iOS OAuth client configuration and a signed device. The native Swift source has not been compiled in this Linux workspace. GitHub Actions have deliberately not been run for this implementation.
+Google sign-in needs the iOS OAuth client configuration and a signed device. The native Swift source compiled successfully with Xcode 26.6 on GitHub Actions. Signed-device and live Google validation remain outstanding.
 
 App blocking through Screen Time, a system Live Activity, and a forced math alarm while the app is closed are not enabled. Focus passes are voluntary; the floating focus pill is inside the app. The iPhone app sends a daily wake-up notification and opens the math mission when tapped.
 
@@ -25,7 +25,7 @@ Use Node 24 and pnpm 11.25.0.
 pnpm install --frozen-lockfile
 pnpm dev
 pnpm check
-pnpm exec playwright install chromium
+pnpm exec playwright install chromium webkit
 pnpm test:e2e
 ```
 
@@ -51,7 +51,7 @@ Use the exact client ID from Google Cloud; the configuration script validates it
 
 ## Build later
 
-Both Actions workflows use `workflow_dispatch` only. When ready, merge the pull request, open **Actions**, choose **Web CI** or **iOS unsigned build**, and select **Run workflow**. The iOS workflow accepts the public iOS client ID as an input or reads the `GOOGLE_IOS_CLIENT_ID` repository variable. It does not require a Google password or token.
+The workflows support manual dispatch and isolated validation branches. The gated beta workflow builds and tests the exact source commit before publishing the IPA, web ZIP, checksums, manifest, and validation notes. See [release validation](docs/RELEASE.md). The iOS workflow accepts the public iOS client ID as an input or reads the `GOOGLE_IOS_CLIENT_ID` repository variable. It does not require a Google password or token.
 
 The iOS artifact is `AnchorOS-unsigned.ipa`. Signing and provisioning are still needed to install it on an iPhone. Keep the bundle identifier `com.ashrafmostafa.anchoros` stable across re-signing to match Google configuration.
 

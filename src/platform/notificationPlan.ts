@@ -1,6 +1,7 @@
 import type { LocalNotificationSchema } from '@capacitor/local-notifications';
 import type { AppState } from '../types';
 import { PRAYER_NAMES, PRAYER_ORDER, dayKeyOf } from '../lib/time';
+import { assignmentPending } from '../state/selectors';
 
 /** Refresh rolling reminders on app use; daily alarms repeat independently of JavaScript. */
 export function notificationPlan(state: AppState, now = new Date()): LocalNotificationSchema[] {
@@ -20,7 +21,7 @@ export function notificationPlan(state: AppState, now = new Date()): LocalNotifi
       push(`nudge:${prayer}:${dayKeyOf(date)}`, `${PRAYER_NAMES[prayer].en} reminder`, 'If you have not prayed yet, make a little space now.', new Date(at.getTime() + 20 * 60_000), 3);
     }
     if (state.notifications.deadlines) {
-      const due = state.assignments.filter(a => a.dueDate >= dayKeyOf(date) && a.dueDate <= dayKeyOf(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 2)) && a.steps.some(s => !s.done));
+      const due = state.assignments.filter(a => a.dueDate >= dayKeyOf(date) && a.dueDate <= dayKeyOf(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 2)) && assignmentPending(a));
       if (due.length) push(`deadline:${dayKeyOf(date)}`, 'A small study step', `${due[0].course}: ${due[0].title}`, new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9), 4);
     }
   }

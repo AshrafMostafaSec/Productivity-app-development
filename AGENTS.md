@@ -23,7 +23,7 @@ React + Vite + Tailwind CSS, with a Capacitor iOS host. The original Figma Make 
 - Install with `pnpm install --frozen-lockfile`; use the Node and pnpm versions in `package.json`.
 - Run `pnpm dev` only when a local preview is needed. Verify broad changes with `pnpm check`.
 - Run `pnpm ios:sync` after web or plugin changes. Commit native project changes, but not copied web assets, generated Capacitor config, credentials, or build outputs.
-- The user has authorized Actions build validation. Both workflows support manual dispatch and pushes to the dedicated `codex/actions-validation` branch. Keep automatic main/PR triggers disabled unless requested.
+- The user has authorized validation and GitHub Releases publication. Web/iOS workflows support manual dispatch, reusable calls, and pushes to `codex/actions-validation`. The release workflow runs on `codex/release-validation`, requires both checks to succeed, verifies the packages, and publishes a beta with checksums. Keep automatic main/PR triggers disabled unless requested.
 - Run `pnpm check`, `pnpm ios:verify`, and the meaningful browser checks after broad changes. Never claim real Google/device/Xcode success from mocks or web tests.
 - Keep side effects outside the reducer. Preserve account isolation, recovery gates, atomic state/metadata saves, and stale-callback cancellation. Never silently replace invalid saved data.
 

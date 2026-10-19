@@ -3,7 +3,7 @@
 This document is the contract for anyone (human or AI) implementing features in AnchorOS.
 Follow it exactly. If the code and this doc disagree, fix one of them in the same change so they match again.
 
-The standalone app uses Capacitor, validated durable device storage, and a Google Drive snapshot controller. `IOS_AND_BACKUP_PLAN.md` describes the implementation and its verification limits. The user has authorized Actions validation: workflows support manual dispatch and pushes to `codex/actions-validation`, with automatic main/PR triggers disabled.
+The standalone app uses Capacitor, validated durable device storage, and a Google Drive snapshot controller. `IOS_AND_BACKUP_PLAN.md` describes the implementation and its verification limits. The user has authorized Actions validation and release publication. `RELEASE.md` describes the gated beta workflow; automatic main/PR triggers remain disabled.
 
 ---
 

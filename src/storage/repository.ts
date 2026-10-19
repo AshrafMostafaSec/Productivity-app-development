@@ -7,16 +7,16 @@ export class Repository {
   constructor(public backend: Backend, private legacy: () => string | null = () => null) {}
   async load(): Promise<Vault> {
     const raw = await this.backend.read();
-    if (raw) {
+    if (raw != null) {
       try { return parseVault(raw); }
       catch (error) { await this.backend.preserveOriginal?.(raw); throw error; }
     }
     const legacy = this.legacy(); this.legacyRaw = legacy;
     let state;
-    try { state = legacy ? parseState(parseJson(legacy)) : undefined; }
-    catch (error) { if (legacy) await this.backend.preserveOriginal?.(legacy); throw error; }
+    try { state = legacy != null ? parseState(parseJson(legacy)) : undefined; }
+    catch (error) { if (legacy != null) await this.backend.preserveOriginal?.(legacy); throw error; }
     const vault: Vault = { format: 1, installationId: crypto.randomUUID(), activeScope: 'guest', datasets: { guest: newDataset(state) }, accounts: {} };
-    if (legacy) { vault.datasets.guest.hasEdits = true; vault.datasets.guest.dirty = true; }
+    if (legacy != null) { vault.datasets.guest.hasEdits = true; vault.datasets.guest.dirty = true; }
     await this.save(vault);
     // Leave the original legacy payload intact as a migration recovery copy.
     return vault;

@@ -2,7 +2,7 @@
 
 ## Local development
 
-Install Node 24 and pnpm 11.25.0, then run `pnpm install --frozen-lockfile`. `pnpm check` validates application/test types, runs the core tests, and builds the app. Install the Playwright Chromium browser with `pnpm exec playwright install chromium`, then run `pnpm test:e2e`.
+Install Node 24 and pnpm 11.25.0, then run `pnpm install --frozen-lockfile`. `pnpm check` validates application/test types, runs the core tests, and builds the app. Install the Playwright browsers with `pnpm exec playwright install chromium webkit`, then run `pnpm test:e2e`.
 
 `ANCHOROS_CHROMIUM_PATH` can point at a compatible existing Chromium executable for a constrained development environment. The test suite does not depend on that option in normal installations.
 
@@ -30,13 +30,13 @@ No Apple ID password is required by the unsigned workflow. If signed CI distribu
 
 ## Run GitHub Actions when ready
 
-The workflows are manual only, as requested. After merging the implementation PR:
+The user has authorized Actions and beta release publication. See `RELEASE.md` for isolated branch triggers and release gates. For individual manual checks:
 
 1. Open **Actions → Web CI → Run workflow** for types, core tests, browser tests, and web assets.
 2. Open **Actions → iOS unsigned build → Run workflow** to sync the configured app, validate native references, compile on macOS, and package the unsigned IPA.
 3. Download **AnchorOS-unsigned-iphone** after the job succeeds, then sign/provision using your chosen installation route.
 
-No Actions run was requested for this implementation. If GitHub still blocks execution, use the account-level reason shown in its job annotations; this cannot be resolved by changing app code.
+The first completed validation runs passed Web CI and Xcode Release compilation. Every release identifies its exact source and current run results; inspect those results for that version.
 
 ## Required signed-device checks
 

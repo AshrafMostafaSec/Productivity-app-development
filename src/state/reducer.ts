@@ -421,7 +421,7 @@ export function reducer(state: StoreState, action: StampedAction): StoreState {
     }
     case 'pomo/complete': {
       const p = state.pomodoro;
-      if (p.status !== 'running') return state;
+      if (p.status !== 'running' || p.endsAt === null || meta.now < p.endsAt) return state;
       let next: StoreState = state;
       let cycle = p.cycle;
       let phase: PomoPhase = 'focus';

@@ -1,0 +1,62 @@
+name: Validate and publish beta release
+
+on:
+  push:
+    branches: [codex/release-validation]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  web:
+    uses: ./.github/workflows/web-ci.yml
+  ios:
+    uses: ./.github/workflows/ios-build.yml
+  publish:
+    needs: [web, ios]
+    if: github.ref == 'refs/heads/codex/release-validation'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: AnchorOS-unsigned-iphone
+          path: release/ios
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: anchoros-web
+          path: release/web
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: anchoros-validation
+          path: release/evidence
+      - name: Verify packages and prepare release assets
+        run: |
+          set -euo pipefail
+          cp release/ios/AnchorOS-unsigned.ipa release/AnchorOS-unsigned.ipa
+          (cd release/web && zip -qr ../AnchorOS-web.zip .)
+          python3 scripts/prepare-release.py release
+      - name: Publish verified beta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')
+          TAG="v${VERSION}-beta.${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" \
+            release/AnchorOS-unsigned.ipa release/AnchorOS-web.zip \
+            release/SHA256SUMS.txt release/build-manifest.json release/VERIFICATION.md \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "AnchorOS ${VERSION} beta ${GITHUB_RUN_NUMBER}" \
+            --prerelease --latest=false --notes-file release/VERIFICATION.md
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url,assets
