@@ -31,7 +31,7 @@ export default function PhoneFrame({ children }: { children: ReactNode }) {
             className="pointer-events-none absolute bottom-2 left-1/2 z-[60] hidden h-[5px] w-[134px] -translate-x-1/2 rounded-full bg-black sm:block"
           />
         </div>
-        <p className="hidden text-[13px] text-secondary sm:block">AnchorOS · Your data stays on this device</p>
+        <p className="hidden text-[13px] text-secondary sm:block">AnchorOS · Personal routines, study, and balance</p>
       </div>
     </div>
   );

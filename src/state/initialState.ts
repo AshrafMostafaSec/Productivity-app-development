@@ -1,5 +1,5 @@
 import type { AppState, PomodoroState, PrayerDay, PrayerId, RoutineTask } from '../types';
-import { addDays, dayKeyOf } from '../lib/time';
+import { dayKeyOf } from '../lib/time';
 
 export const blankPrayers = (): Record<PrayerId, PrayerDay> => ({
   fajr: { status: 'none', sunnah: false },
@@ -51,7 +51,7 @@ export function createInitialState(now: Date = new Date()): AppState {
 
     routines: [
       routine('r-launch', 'Morning launchpad', 'fajr', 10, 'Drink a full glass of water', [
-        'Water + morning meds',
+        'Drink a glass of water',
         'Open the curtains',
         'Pack charger and student ID',
       ]),
@@ -76,19 +76,7 @@ export function createInitialState(now: Date = new Date()): AppState {
     ],
     brainDump: [],
 
-    assignments: [
-      {
-        id: 'a-example',
-        course: 'CS 302',
-        title: 'Problem Set 4',
-        dueDate: addDays(2, now),
-        steps: [
-          { id: 'a-example-0', title: 'Download the starter files', done: false },
-          { id: 'a-example-1', title: 'Read question 1 only', done: false },
-          { id: 'a-example-2', title: 'Write a messy first attempt', done: false },
-        ],
-      },
-    ],
+    assignments: [],
     apps: [
       { id: 'tiktok', name: 'TikTok', cost: 15, unlockedUntil: null, blockedToday: 0 },
       { id: 'instagram', name: 'Instagram', cost: 15, unlockedUntil: null, blockedToday: 0 },
@@ -104,7 +92,7 @@ export function createInitialState(now: Date = new Date()): AppState {
     focusGoalMins: 120,
     alarms: [
       { id: 'al-fajr', time: '04:50', label: 'Wake for Fajr', enabled: true, mission: 'math' },
-      { id: 'al-uni', time: '07:30', label: 'Meds & get ready', enabled: false, mission: 'tap' },
+      { id: 'al-uni', time: '07:30', label: 'Get ready', enabled: false, mission: 'tap' },
     ],
     ringingAlarm: null,
 
@@ -114,7 +102,7 @@ export function createInitialState(now: Date = new Date()): AppState {
     tasbih: { phraseId: 'subhanallah', target: 33, count: 0, totalToday: 0 },
     habits: {},
 
-    budget: { daily: 30, currency: '$' },
+    budget: { daily: 100, currency: 'EGP' },
     expenses: [],
     impulses: [],
     savedTotal: 0,

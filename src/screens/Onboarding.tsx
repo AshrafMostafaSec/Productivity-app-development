@@ -15,7 +15,7 @@ const PAGES = [
   {
     icon: Target,
     title: 'Earn your screen time',
-    body: 'Prayers, Pomodoros and finished steps earn minutes. Distracting apps cost minutes, and they stay locked until you pray.',
+    body: 'Prayers, study blocks and finished steps earn minutes. Use a focus pass to plan a short break. App blocking is not enabled in this version.',
   },
   {
     icon: Wallet,
@@ -25,7 +25,7 @@ const PAGES = [
   {
     icon: Bell,
     title: 'Gentle reminders',
-    body: 'Prayer times, Pomodoro breaks, deadlines and your Fajr alarm. Allow notifications so they reach you.',
+    body: 'Allow prayer, study and wake-up reminders. Set your real prayer times, then connect Google in Settings → Account & Backup.',
   },
 ];
 

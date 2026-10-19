@@ -55,7 +55,7 @@ export default function useScheduler() {
           const t = minutesOf(s.prayerTimes[id]);
           if (s.prayers[id].status !== 'none') continue;
           const name = PRAYER_NAMES[id].en;
-          if (mins >= t && mins < t + 5) send(`prayer:${id}`, `${name} · ${PRAYER_NAMES[id].ar}`, 'It’s time to pray. Apps unlock after you log it.');
+          if (mins >= t && mins < t + 5) send(`prayer:${id}`, `${name} · ${PRAYER_NAMES[id].ar}`, 'It’s time to pray. Take a moment, then log your prayer.');
           if (mins >= t + 20 && mins < t + 25) send(`prayer-late:${id}`, `${name} still waiting`, 'A few minutes now beats rushing later.');
         }
       }

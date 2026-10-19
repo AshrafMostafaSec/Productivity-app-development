@@ -1,48 +1,66 @@
 # AnchorOS
 
-A personal productivity app for routines, university work, prayer, focus, and daily spending. The interface is based on the supplied Figma Make export.
+A personal iPhone productivity app for routines, study, prayer, focus, and daily spending. Built from the supplied design with React, TypeScript, and Capacitor.
 
-## Current status
+## Implemented
 
-- Working React/TypeScript prototype with local device storage.
-- Standalone Vite build, Capacitor iOS host, and GitHub Actions build workflows.
-- Google sign-in, cloud backup, and restore are **planned, not connected yet**.
-- App Shield and the floating focus pill are currently in-app simulations. They do not block other iPhone apps or create an iOS Live Activity.
+- The four original areas: Today, Deen, Focus, and Wallet.
+- Validated, versioned device storage: atomic protected files on iOS and transactional IndexedDB in a browser.
+- Native Google Sign-In integration and Google Drive app-specific snapshot backups.
+- Automatic backup after changes, retries, account isolation, overwrite prevention, backup history, and confirmed restore.
+- Portable JSON export/import, recovery from damaged saves, and a previous-data rollback copy for each account.
+- Native iPhone reminders, daily wake-up notifications, and reconciliation after returning to the app.
+- Bundled fonts and split screens; no network is needed for local use after installation.
+- Manual GitHub Actions for web checks and an unsigned iPhone IPA.
 
-## Run locally
+Google sign-in needs the iOS OAuth client configuration and a signed device. The native Swift source has not been compiled in this Linux workspace. GitHub Actions have deliberately not been run for this implementation.
+
+App blocking through Screen Time, a system Live Activity, and a forced math alarm while the app is closed are not enabled. Focus passes are voluntary; the floating focus pill is inside the app. The iPhone app sends a daily wake-up notification and opens the math mission when tapped.
+
+## Run and verify
 
 Use Node 24 and pnpm 11.25.0.
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm dev
-```
-
-Check TypeScript and build production assets:
-
-```sh
 pnpm check
+pnpm exec playwright install chromium
+pnpm test:e2e
 ```
+
+`pnpm check` checks application and test types, runs unit/integration tests, and builds the production app. Browser tests cover export/import, damaged imports, reload, concurrent windows, nested sheets, and all four tabs.
+
+## iPhone project
 
 On a Mac with Xcode 26 or newer:
 
 ```sh
 pnpm ios:sync
+pnpm ios:verify
 pnpm ios:open
 ```
 
-## Builds
+The app targets iOS 16 or newer. To configure Google before syncing:
 
-- **Web CI** checks TypeScript and uploads the web build on pull requests and main pushes.
-- **iOS build** uses a macOS runner to build an unsigned device app and uploads `AnchorOS-unsigned.ipa`. It runs on pull requests/main pushes and can be started manually.
-- The unsigned IPA requires compatible signing and provisioning before installation on a real iPhone. This repository does not yet provide a signed release workflow.
+```sh
+GOOGLE_IOS_CLIENT_ID=your-ios-client-id.apps.googleusercontent.com pnpm ios:sync
+```
 
-## Development guide
+Use the exact client ID from Google Cloud; the configuration script validates it and generates the callback scheme. The ID above is illustrative, not a working credential. See [setup](docs/SETUP.md) for the complete steps.
 
-- [Project review](docs/PROJECT_REVIEW.md): what exists and what needs work.
-- [iOS and Google backup plan](docs/IOS_AND_BACKUP_PLAN.md): target architecture, restore, milestones, and acceptance criteria.
-- [Setup](docs/SETUP.md): Google configuration and Apple signing requirements.
-- [Architecture](docs/ARCHITECTURE.md): current state flow and design rules.
-- [Progress](docs/PROGRESS.md): completed work and next steps for future sessions.
+## Build later
 
-Personal backups, OAuth tokens, Apple certificates, and provisioning profiles must stay out of source control and Actions artifacts.
+Both Actions workflows use `workflow_dispatch` only. When ready, merge the pull request, open **Actions**, choose **Web CI** or **iOS unsigned build**, and select **Run workflow**. The iOS workflow accepts the public iOS client ID as an input or reads the `GOOGLE_IOS_CLIENT_ID` repository variable. It does not require a Google password or token.
+
+The iOS artifact is `AnchorOS-unsigned.ipa`. Signing and provisioning are still needed to install it on an iPhone. Keep the bundle identifier `com.ashrafmostafa.anchoros` stable across re-signing to match Google configuration.
+
+## Project guide
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Backup and recovery behavior](docs/IOS_AND_BACKUP_PLAN.md)
+- [Google and Apple setup](docs/SETUP.md)
+- [Project review and platform limits](docs/PROJECT_REVIEW.md)
+- [Progress and validation](docs/PROGRESS.md)
+
+Backups contain personal data. Credentials, personal backups, Apple certificates, and provisioning profiles must stay out of Git and build artifacts. Bundled font licenses are in `public/licenses/`.
